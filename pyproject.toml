@@ -1,0 +1,20 @@
+[project]
+name = "dataflow-workshops"
+version = "0.1.0"
+description = "Google Cloud Dataflow & Apache Beam Stream and Batch Data Processing Workshop"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "apache-beam[gcp,interactive]>=2.56.0",
+    "python-dotenv>=1.0.1",
+    "google-cloud-pubsub>=2.20.0",
+    "google-cloud-bigquery>=3.20.0",
+    "google-cloud-storage>=2.16.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.6.0",
+    "ipykernel>=6.29.0",
+]

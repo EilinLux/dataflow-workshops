@@ -1,0 +1,18 @@
+[
+  {"event_id": "evt-1001", "user_id": "usr_alpha", "device_id": "dev_01", "event_type": "page_view", "page": "/home", "amount": 0.0, "event_timestamp": "2026-10-27T10:00:05Z"},
+  {"event_id": "evt-1002", "user_id": "usr_alpha", "device_id": "dev_01", "event_type": "view_item", "page": "/product/101", "amount": 0.0, "event_timestamp": "2026-10-27T10:00:15Z"},
+  {"event_id": "evt-1003", "user_id": "usr_beta", "device_id": "dev_02", "event_type": "page_view", "page": "/home", "amount": 0.0, "event_timestamp": "2026-10-27T10:00:20Z"},
+  {"event_id": "evt-1004", "user_id": "usr_alpha", "device_id": "dev_01", "event_type": "add_to_cart", "page": "/cart", "amount": 89.99, "event_timestamp": "2026-10-27T10:00:35Z"},
+  {"event_id": "evt-1005", "user_id": "usr_gamma", "device_id": "dev_03", "event_type": "page_view", "page": "/categories", "amount": 0.0, "event_timestamp": "2026-10-27T10:00:40Z"},
+  {"event_id": "evt-1006", "user_id": "usr_beta", "device_id": "dev_02", "event_type": "add_to_cart", "page": "/cart", "amount": 149.50, "event_timestamp": "2026-10-27T10:00:45Z"},
+  {"event_id": "evt-1007", "user_id": "usr_alpha", "device_id": "dev_01", "event_type": "purchase", "page": "/checkout/success", "amount": 89.99, "event_timestamp": "2026-10-27T10:00:55Z"},
+  {"event_id": "evt-1008", "user_id": "usr_beta", "device_id": "dev_02", "event_type": "purchase", "page": "/checkout/success", "amount": 149.50, "event_timestamp": "2026-10-27T10:01:10Z"},
+  {"event_id": "evt-1009", "user_id": "usr_gamma", "device_id": "dev_03", "event_type": "view_item", "page": "/product/305", "amount": 0.0, "event_timestamp": "2026-10-27T10:01:25Z"},
+  {"event_id": "evt-1010", "user_id": "usr_gamma", "device_id": "dev_03", "event_type": "add_to_cart", "page": "/cart", "amount": 42.00, "event_timestamp": "2026-10-27T10:01:45Z"},
+  {"event_id": "evt-1011", "user_id": "usr_alpha", "device_id": "dev_01", "event_type": "page_view", "page": "/account/orders", "amount": 0.0, "event_timestamp": "2026-10-27T10:05:00Z"},
+  {"event_id": "evt-1012", "user_id": "usr_alpha", "device_id": "dev_01", "event_type": "purchase", "page": "/checkout/success", "amount": 29.99, "event_timestamp": "2026-10-27T10:05:30Z"},
+  {"event_id": "evt-1013", "user_id": "usr_beta", "device_id": "dev_02", "event_type": "page_view", "page": "/home", "amount": 0.0, "event_timestamp": "2026-10-27T10:00:30Z", "note": "Simulated late arrival for Window 10:00-10:01"},
+  {"event_id": "evt-1014", "user_id": "usr_delta", "device_id": "dev_04", "event_type": "purchase", "amount": -15.00, "event_timestamp": "2026-10-27T10:01:30Z", "note": "Poison record: negative amount"},
+  {"event_id": "evt-1015", "user_id": "", "device_id": "dev_05", "event_type": "page_view", "amount": 0.0, "event_timestamp": "2026-10-27T10:01:35Z", "note": "Poison record: empty user_id"},
+  {"CORRUPTED_RAW_JSON_LINE_WITHOUT_SCHEMA"}
+]

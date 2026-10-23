@@ -1,0 +1,6 @@
+[
+  {"product_id": "PROD_A", "product_name": "Wireless Noise-Canceling Headphones", "category": "Electronics", "unit_cost": 85.00},
+  {"product_id": "PROD_B", "product_name": "Ergonomic Mechanical Keyboard", "category": "Office", "unit_cost": 110.00},
+  {"product_id": "PROD_C", "product_name": "4K Ultra-HD Curved Monitor", "category": "Electronics", "unit_cost": 220.00},
+  {"product_id": "PROD_D", "product_name": "Multi-Device Bluetooth Mouse", "category": "Office", "unit_cost": 25.00}
+]
