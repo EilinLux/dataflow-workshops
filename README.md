@@ -254,7 +254,21 @@ dataflow-workshops/
 │       ├── 01_run_local.sh                           # Local execution script (DirectRunner)
 │       └── 02_run_dataflow.sh                        # Cloud Dataflow submission script
 │
-├── 05_streaming_engine_and_monitoring/               # Chapter 05: Streaming Engine, System Lag & Observability (Upcoming)
+├── 05_streaming_engine_and_monitoring/               # Chapter 05: Production Performance, Streaming Engine & Observability
+│   ├── README.md                                     # Chapter documentation & monitoring guide
+│   ├── 05_streaming_engine_and_monitoring.ipynb      # Interactive notebook with metrics & latency profiling
+│   ├── data/
+│   │   └── benchmark_telemetry.json                  # High-volume synthetic benchmark stream
+│   ├── pipelines/
+│   │   └── benchmarked_streaming_pipeline.py         # Pipeline with Beam Metrics.distribution & Streaming Engine
+│   ├── monitoring/
+│   │   ├── alert_policy_system_lag.json              # Cloud Monitoring SLA Alert Policy (System Lag > 120s)
+│   │   ├── alert_policy_data_freshness.json          # Cloud Monitoring Alert Policy (Data Freshness > 300s)
+│   │   └── dashboard_dataflow_sla.json               # Cloud Monitoring Dashboard configuration
+│   └── scripts/
+│       ├── 01_run_local_benchmark.sh                 # Local benchmark runner (DirectRunner)
+│       └── 02_run_dataflow_optimized.sh              # Cloud submission script with autoscaling
+│
 ├── 06_operations_replay_and_updates/                 # Chapter 06: Zero-Downtime Updates & Pub/Sub Seek Replay (Upcoming)
 ├── 07_testing_templates_and_cicd/                    # Chapter 07: TestPipeline, Flex Templates & CI/CD (Upcoming)
 │
@@ -263,7 +277,8 @@ dataflow-workshops/
     ├── 01_sales_pipeline_dag.png
     ├── 02_side_inputs_and_bq_dag.png
     ├── 03_windowing_and_streaming_dag.png
-    └── 04_stateful_and_fanout_dag.png
+    ├── 04_stateful_and_fanout_dag.png
+    └── 05_streaming_engine_and_monitoring_dag.png
 ```
 
 ---

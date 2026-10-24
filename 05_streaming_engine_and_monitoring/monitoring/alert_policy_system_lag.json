@@ -1,0 +1,36 @@
+{
+  "displayName": "Dataflow SLA: High System Lag (>120s)",
+  "documentation": {
+    "content": "### 🚨 Dataflow SLA Alert: Critical System Lag\n\n**Condition**: Pipeline `system_lag` has exceeded 120 seconds for more than 5 minutes.\n\n**Root Cause Diagnostics**:\n1. **Throughput Deficit**: The rate of incoming messages from Pub/Sub exceeds worker processing capacity.\n2. **Slow Step / Worker Bottleneck**: Inspect Dataflow step-level execution times for I/O waits or heavy computation.\n3. **Autoscaling Ceiling**: Check if the job has hit `maxNumWorkers` and cannot scale out further.\n\n**Remediation Steps**:\n- Scale up worker count: `gcloud dataflow jobs update-options ... --max-workers=...`\n- Check Dataflow Job Logs for worker OOM or persistent retries.\n- Verify downstream sink health (e.g. BigQuery quota / rate limits).",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "System Lag > 120s for 5m",
+      "conditionThreshold": {
+        "filter": "resource.type = \"dataflow_job\" AND metric.type = \"dataflow.googleapis.com/job/system_lag\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 120.0,
+        "duration": "300s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "60s",
+            "perSeriesAligner": "ALIGN_MAX",
+            "crossSeriesReducer": "REDUCE_MAX",
+            "groupByFields": [
+              "resource.label.job_id",
+              "resource.label.job_name"
+            ]
+          }
+        ],
+        "trigger": {
+          "count": 1
+        }
+      }
+    }
+  ],
+  "alertStrategy": {
+    "autoClose": "1800s"
+  }
+}

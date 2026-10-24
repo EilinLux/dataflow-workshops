@@ -1,0 +1,36 @@
+{
+  "displayName": "Dataflow SLA: Degraded Data Freshness (>300s)",
+  "documentation": {
+    "content": "### ⚠️ Dataflow SLA Alert: Data Freshness Degradation\n\n**Condition**: Output `data_freshness` has exceeded 300 seconds (5 minutes).\n\n**Root Cause Diagnostics**:\n1. **Upstream Source Inactivity**: Upstream publishers (e.g. Pub/Sub) may have ceased emitting records, causing the watermark to stall.\n2. **Large Windowing Duration**: Verify if windows are configured with multi-hour spans where outputs are only emitted at window boundaries.\n3. **Watermark Drift**: Inspect if late-arriving records with past timestamps are dragging the pipeline watermark backwards.\n\n**Remediation Steps**:\n- Verify upstream producer health and message ingestion rates.\n- Check Pub/Sub subscription unacknowledged message counts.\n- Inspect pipeline watermark propagation across transform steps.",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "Data Freshness > 300s for 5m",
+      "conditionThreshold": {
+        "filter": "resource.type = \"dataflow_job\" AND metric.type = \"dataflow.googleapis.com/job/data_freshness\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 300.0,
+        "duration": "300s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "60s",
+            "perSeriesAligner": "ALIGN_MAX",
+            "crossSeriesReducer": "REDUCE_MAX",
+            "groupByFields": [
+              "resource.label.job_id",
+              "resource.label.job_name"
+            ]
+          }
+        ],
+        "trigger": {
+          "count": 1
+        }
+      }
+    }
+  ],
+  "alertStrategy": {
+    "autoClose": "1800s"
+  }
+}
