@@ -243,7 +243,17 @@ dataflow-workshops/
 │       ├── 02_run_dataflow.sh                        # DataflowRunner streaming submission script
 │       └── generate_streaming_data.py                # Pub/Sub streaming publisher with timestamps & drift
 │
-├── 04_stateful_processing_and_hotkeys/               # Chapter 04: Stateful DoFns, Timers & withHotKeyFanout (Upcoming)
+├── 04_stateful_processing_and_hotkeys/               # Chapter 04: Stateful Processing, Timers & Hot Key Fanout
+│   ├── README.md                                     # Chapter documentation & hot key guide
+│   ├── 04_stateful_processing_and_hotkeys.ipynb      # Interactive notebook with stateful DoFns & fanout
+│   ├── data/
+│   │   └── skewed_clickstream.json                   # Skewed telemetry stream (500 celebrity events vs 5 normal)
+│   ├── pipelines/
+│   │   └── stateful_and_fanout_pipeline.py           # Production pipeline with @StateId, @TimerId & withHotKeyFanout
+│   └── scripts/
+│       ├── 01_run_local.sh                           # Local execution script (DirectRunner)
+│       └── 02_run_dataflow.sh                        # Cloud Dataflow submission script
+│
 ├── 05_streaming_engine_and_monitoring/               # Chapter 05: Streaming Engine, System Lag & Observability (Upcoming)
 ├── 06_operations_replay_and_updates/                 # Chapter 06: Zero-Downtime Updates & Pub/Sub Seek Replay (Upcoming)
 ├── 07_testing_templates_and_cicd/                    # Chapter 07: TestPipeline, Flex Templates & CI/CD (Upcoming)
@@ -252,7 +262,8 @@ dataflow-workshops/
     ├── 01_numbers_pipeline_dag.png
     ├── 01_sales_pipeline_dag.png
     ├── 02_side_inputs_and_bq_dag.png
-    └── 03_windowing_and_streaming_dag.png
+    ├── 03_windowing_and_streaming_dag.png
+    └── 04_stateful_and_fanout_dag.png
 ```
 
 ---
