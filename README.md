@@ -269,7 +269,19 @@ dataflow-workshops/
 │       ├── 01_run_local_benchmark.sh                 # Local benchmark runner (DirectRunner)
 │       └── 02_run_dataflow_optimized.sh              # Cloud submission script with autoscaling
 │
-├── 06_operations_replay_and_updates/                 # Chapter 06: Zero-Downtime Updates & Pub/Sub Seek Replay (Upcoming)
+├── 06_operations_replay_and_updates/                 # Chapter 06: Resilient Operations, Disaster Recovery & Rolling Updates
+│   ├── README.md                                     # Chapter documentation & recovery guide
+│   ├── 06_operations_replay_and_updates.ipynb        # Interactive notebook with rolling updates & seek
+│   ├── data/
+│   │   └── replay_telemetry.json                     # 24-hour historical telemetry stream
+│   ├── pipelines/
+│   │   ├── resilient_stream_v1.py                    # Pipeline Version 1 (Baseline logic)
+│   │   └── resilient_stream_v2.py                    # Pipeline Version 2 (In-place rolling update)
+│   └── scripts/
+│       ├── 01_test_rolling_update_simulation.sh      # Local simulation comparing V1 vs V2
+│       ├── 02_deploy_v1_and_update_v2.sh             # Zero-downtime rolling update submission
+│       └── 03_disaster_recovery_seek_replay.sh       # Disaster recovery via Pub/Sub subscription seek
+│
 ├── 07_testing_templates_and_cicd/                    # Chapter 07: TestPipeline, Flex Templates & CI/CD (Upcoming)
 │
 └── artifacts/                                        # Pre-rendered high-res SVG & PNG pipeline architecture diagrams
@@ -278,7 +290,8 @@ dataflow-workshops/
     ├── 02_side_inputs_and_bq_dag.png
     ├── 03_windowing_and_streaming_dag.png
     ├── 04_stateful_and_fanout_dag.png
-    └── 05_streaming_engine_and_monitoring_dag.png
+    ├── 05_streaming_engine_and_monitoring_dag.png
+    └── 06_resilient_ops_and_updates_dag.png
 ```
 
 ---
