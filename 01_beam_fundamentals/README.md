@@ -320,7 +320,7 @@ class BadCounterFn(beam.DoFn):
 
 ## Environment Setup & Activating the Kernel
 
-Before running scripts or opening the notebook, set up the project environment:
+Before running scripts or opening the notebook, set up the project environment (for the complete guide, see the root [README.md](../README.md#environment-setup--activating-the-kernel-with-uv)):
 
 ```bash
 # 1. From the repository root, install dependencies into .venv

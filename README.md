@@ -30,11 +30,10 @@
   - [Chapter 07 — Unit Testing, Docker Flex Templates, CI/CD & Security](07_testing_templates_and_cicd/)
 - [Repository Structure](#repository-structure)
 - [Apache Beam & Dataflow Core Concepts Quick Reference](#apache-beam--dataflow-core-concepts-quick-reference)
-- [Local Environment Setup (`uv`)](#local-environment-setup-uv)
+- [Environment Setup & Activating the Kernel with uv](#environment-setup--activating-the-kernel-with-uv)
   - [1. Install `uv`](#1-install-uv-if-not-already-installed)
   - [2. Create or Synchronize the Virtual Environment](#2-create-or-synchronize-the-virtual-environment-uv-sync)
-  - [3. How to Activate and Use the Environment](#3-how-to-activate-and-use-the-environment)
-  - [4. Register & Select the Jupyter Kernel](#4-register--select-the-jupyter-kernel-prevents-modulenotfounderror-no-module-named-apache_beam)
+  - [3. How to Activate the Environment](#3-how-to-activate-the-environment)
 - [Google Cloud Prerequisites & Quick Start](#google-cloud-prerequisites--quick-start)
   - [1. Authenticate and Configure GCP Project](#1-authenticate-and-configure-gcp-project)
   - [2. Enable Required APIs](#2-enable-required-apis)
@@ -399,13 +398,13 @@ A complete reference of all fundamental abstractions, streaming primitives, stat
 
 ---
 
-## Local Environment Setup (`uv`)
+## Environment Setup & Activating the Kernel with uv
 
-This repository uses **[`uv`](https://docs.astral.sh/uv/)** to manage Python 3.12, dependencies (`apache-beam[gcp]`, `python-dotenv`, `google-cloud-*`), and dev tooling (`pytest`, `ruff`, `ipykernel`) inside a fast, isolated `.venv` virtual environment.
+This project uses **[`uv`](https://docs.astral.sh/uv/)** to manage dependencies in an isolated `.venv` virtual environment.
 
 ### 1. Install `uv` (if not already installed)
 ```bash
-# macOS / Linux
+# macOS / Linux:
 curl -LsSf https://astral.sh/uv/install.sh | sh
 # or via Homebrew:
 brew install uv
@@ -418,51 +417,39 @@ From the root of the repository, create the `.venv` and install all required dep
 uv sync
 ```
 
-### 3. How to Activate and Use the Environment
+### 3. How to Activate the Environment
 
-You have two ways to work with the virtual environment:
-
-#### Option A: Activate the Virtual Environment in Your Shell (Standard)
-To activate the virtual environment directly in your current terminal session:
+#### Option A: In the Terminal
+If you are running scripts from the command line, activate the environment with:
 ```bash
-# macOS / Linux (zsh or bash)
+# macOS / Linux:
 source .venv/bin/activate
 
-# Windows (Command Prompt / PowerShell)
+# Windows (Command Prompt / PowerShell):
 # .venv\Scripts\activate
+
+# Or execute any command directly without manual activation:
+uv run python 01_beam_fundamentals/pipelines/sales_pipeline.py --help
 ```
 Once activated, your prompt will show `(.venv)` and running `python` or `pip` will automatically use the isolated environment. To deactivate when done, simply run `deactivate`.
 
-#### Option B: Run Commands Directly with `uv run` (No Activation Required)
-`uv` can run any script or tool inside the `.venv` without needing to manually activate it:
-```bash
-# Run a Python script inside the virtual environment
-uv run python 01_beam_fundamentals/pipelines/sales_pipeline.py --help
-
-# Run tests or linters
-uv run pytest
-uv run ruff check .
-```
-
-### 4. Register & Select the Jupyter Kernel (Prevents `ModuleNotFoundError: No module named 'apache_beam'`)
-
-If you open any `.ipynb` notebook in VS Code, Cursor, Antigravity, or JupyterLab and encounter:
+#### Option B: In This Jupyter Notebook (Kernel Selection)
+If you run a notebook cell and see:
 ```text
 ModuleNotFoundError: No module named 'apache_beam'
 ```
-this means your notebook editor is attached to your global system Python instead of the project's `.venv`.
+the notebook is attached to your global system Python instead of the `.venv`.
 
-**Step 1 — Register the `.venv` as a named Jupyter kernel:**
-```bash
-uv run python -m ipykernel install --user --name dataflow-workshops --display-name "Python (dataflow-workshops)"
-```
+1. **Register the kernel** (run this once from your terminal in the repository root):
+   ```bash
+   uv run python -m ipykernel install --user --name dataflow-workshops --display-name "Python (dataflow-workshops)"
+   ```
+2. **Select the kernel in your IDE**:
+   * Look at the top-right corner of this notebook editor window.
+   * Click the **Kernel Picker** button.
+   * Select **`Python (dataflow-workshops)`** or browse to **`.venv/bin/python`**.
 
-**Step 2 — Select the Kernel in your Editor:**
-1. Open any notebook (e.g. `01_beam_fundamentals/01_beam_fundamentals.ipynb`).
-2. Click the **Kernel Picker** in the top-right corner of the editor window.
-3. Choose **`Python (dataflow-workshops)`** or point to **Select Another Kernel... $\rightarrow$ Python Environments $\rightarrow$ `.venv/bin/python`**.
-
-Once selected, all notebook cells will execute inside the isolated environment with `apache-beam` and all Google Cloud SDKs available.
+Once selected, all notebook cells will execute inside the isolated `.venv` environment with `apache-beam` and all Google Cloud SDKs available.
 
 ---
 
