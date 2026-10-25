@@ -314,17 +314,44 @@ dataflow-workshops/
 
 ---
 
-## Apache Beam Core Concepts Quick Reference
+## Apache Beam & Dataflow Core Concepts Quick Reference
 
-| Concept | Description | Code Example |
-| :--- | :--- | :--- |
-| **`Pipeline`** | The root container managing the entire directed graph of data transformations. | `with beam.Pipeline(options=options) as p:` |
-| **`PCollection`** | An immutable distributed dataset (bounded or unbounded) processed by pipeline steps. | `lines = p \| "Read" >> beam.io.ReadFromText("gs://...")` |
-| **`PTransform`** | A data processing operation that takes one or more `PCollections` and outputs new ones. | `upper = lines \| "Upper" >> beam.Map(lambda x: x.upper())` |
-| **`ParDo` / `DoFn`** | Core element-wise processing transform allowing custom state, multiple outputs, and setup logic. | `results = records \| "Clean" >> beam.ParDo(CleanDataFn())` |
-| **`GroupByKey`** | Collects all values associated with the same key across distributed workers. | `grouped = pairs \| "Group" >> beam.GroupByKey()` |
-| **`CombinePerKey`** | Efficiently aggregates values per key, performing partial combiner reductions locally before shuffle. | `totals = pairs \| "Sum" >> beam.CombinePerKey(sum)` |
-| **`WindowInto`** | Divides a `PCollection` into finite temporal slices based on event timestamps. | `windowed = events \| beam.WindowInto(FixedWindows(60))` |
+A complete reference of all fundamental abstractions, streaming primitives, stateful operators, observability metrics, and enterprise security patterns demonstrated throughout this repository:
+
+| Concept | Chapter / Folder | Category | Description | Production Code Example |
+| :--- | :--- | :--- | :--- | :--- |
+| **`Pipeline` & `PipelineOptions`** | [`01_beam_fundamentals/`](01_beam_fundamentals/) | Core Abstraction | Root directed acyclic graph (DAG) container configured with runner, worker, and GCP project options. | `with beam.Pipeline(options=PipelineOptions()) as p:` |
+| **`PCollection`** | [`01_beam_fundamentals/`](01_beam_fundamentals/) | Core Abstraction | Immutable distributed dataset representing bounded batch or unbounded streaming data. | `lines = p \| "Read" >> beam.io.ReadFromText("gs://...")` |
+| **`PTransform`** | [`01_beam_fundamentals/`](01_beam_fundamentals/) | Core Abstraction | Data transformation step piped with `\|` and assigned a unique step name using `>>`. | `output = input \| "StepLabel" >> CustomTransform()` |
+| **`DirectRunner` vs `DataflowRunner`** | [`01_beam_fundamentals/`](01_beam_fundamentals/) | Execution Engines | Local in-memory runner for debugging/tests vs. Google Cloud zero-ops distributed serverless service. | `--runner=DataflowRunner --project=$PROJECT_ID` |
+| **`Map` & `FlatMap`** | [`01_beam_fundamentals/`](01_beam_fundamentals/) | Element-wise | Functional transforms for 1-to-1 element mapping or 1-to-many list flattening without state. | `words = lines \| "Split" >> beam.FlatMap(lambda x: x.split())` |
+| **`Filter`** | [`01_beam_fundamentals/`](01_beam_fundamentals/) | Element-wise | Predicate-based element filtering evaluating each record to True or False. | `valid = records \| "Filter" >> beam.Filter(lambda x: x["amt"] > 0)` |
+| **`DoFn` Lifecycle** | [`02_transforms_and_bigquery/`](02_transforms_and_bigquery/) | Custom Processing | Distributed worker class lifecycle hooks: `setup()`, `process()`, `finish_bundle()`, `teardown()`. | `class ProcessFn(beam.DoFn): def setup(self): ...` |
+| **Side Inputs (`AsDict`, `AsList`)** | [`02_transforms_and_bigquery/`](02_transforms_and_bigquery/) | Cross-Data Lookup | Broadcasting auxiliary lookup collections to all worker DoFns without cross-cluster join shuffles. | `pcoll \| beam.ParDo(EnrichFn(), cat=beam.pvalue.AsDict(cat_pcoll))` |
+| **Tagged Outputs (`TaggedOutput` / DLQ)** | [`02_transforms_and_bigquery/`](02_transforms_and_bigquery/) | Multi-Branching | Routing malformed or failed records to an isolated dead-letter queue while good data continues. | `yield beam.pvalue.TaggedOutput("dead_letter", error_record)` |
+| **BigQuery Storage Write API** | [`02_transforms_and_bigquery/`](02_transforms_and_bigquery/) | Managed I/O Sink | High-throughput, low-latency append stream writing directly into BigQuery with exactly-once guarantees. | `beam.io.WriteToBigQuery(table, method="STORAGE_WRITE_API")` |
+| **Pub/Sub Stream Ingestion** | [`03_realtime_streaming/`](03_realtime_streaming/) | Stream Ingestion | Ingesting unbounded streaming messages with message ordering keys and publish timestamps. | `p \| beam.io.ReadFromPubSub(subscription=sub_path)` |
+| **Event Timestamps & Watermarks** | [`03_realtime_streaming/`](03_realtime_streaming/) | Time Semantics | Attaching event-time timestamps (`TimestampedValue`) and advancing watermark clocks across steps. | `beam.window.TimestampedValue(record, epoch_timestamp)` |
+| **Fixed (Tumbling) Windows** | [`03_realtime_streaming/`](03_realtime_streaming/) | Windowing | Segmenting stream elements into continuous, non-overlapping uniform intervals (e.g., 60-second buckets). | `pcoll \| beam.WindowInto(FixedWindows(60))` |
+| **Sliding (Hopping) Windows** | [`03_realtime_streaming/`](03_realtime_streaming/) | Windowing | Overlapping uniform intervals for continuous rolling aggregates and moving rate averages. | `pcoll \| beam.WindowInto(SlidingWindows(size=300, period=60))` |
+| **Session Windows** | [`03_realtime_streaming/`](03_realtime_streaming/) | Windowing | Dynamic per-key activity windows demarcated by periods of inactivity exceeding a gap threshold. | `pcoll \| beam.WindowInto(Sessions(gap_size=300))` |
+| **Allowed Lateness & Accumulation** | [`03_realtime_streaming/`](03_realtime_streaming/) | Time Semantics | Retaining window state beyond watermark to process late arrivals and update existing aggregations. | `allowed_lateness=86400, accumulation_mode=AccumulationMode.ACCUMULATING` |
+| **Watermark Triggers** | [`03_realtime_streaming/`](03_realtime_streaming/) | Window Triggers | Specifying early speculative firings, on-time watermark firings, and late-arriving delta firings. | `trigger=AfterWatermark(early=AfterCount(10), late=AfterCount(1))` |
+| **Stateful `DoFn` (`@StateId`)** | [`04_stateful_processing_and_hotkeys/`](04_stateful_processing_and_hotkeys/) | Stateful Processing | Managing per-key persistent state (`ReadModifyWriteStateSpec`, `BagStateSpec`) offloaded to Streaming Engine. | `COUNT_STATE = ReadModifyWriteStateSpec("count", VarIntCoder())` |
+| **Timers & Callbacks (`@TimerId`)** | [`04_stateful_processing_and_hotkeys/`](04_stateful_processing_and_hotkeys/) | Stateful Processing | Scheduling event-time or processing-time callbacks to flush buffers or purge inactive state. | `EXPIRY_TIMER = TimerSpec("expiry", TimeDomain.REAL_TIME)` |
+| **Hot Key Fanout (`withHotKeyFanout`)** | [`04_stateful_processing_and_hotkeys/`](04_stateful_processing_and_hotkeys/) | Skew Mitigation | Sharding skewed/popular keys across $N$ intermediate workers before global combiner reduction. | `pcoll \| beam.CombinePerKey(sum).withHotKeyFanout(10)` |
+| **Pipeline Metrics (`Metrics.distribution`)** | [`05_streaming_engine_and_monitoring/`](05_streaming_engine_and_monitoring/) | Observability | Tracking custom counters, gauges, and step latency distributions visible in Cloud Dataflow & Monitoring. | `self.dist = Metrics.distribution(self.__class__, "step_latency_ms")` |
+| **Streaming Engine & Managed Shuffle** | [`05_streaming_engine_and_monitoring/`](05_streaming_engine_and_monitoring/) | Cloud Infrastructure | Offloading window state, timers, and shuffle operations from worker VMs to dedicated Google backend. | `--enable_streaming_engine --experiments=use_runner_v2` |
+| **System Lag & Data Freshness** | [`05_streaming_engine_and_monitoring/`](05_streaming_engine_and_monitoring/) | Observability | Core Dataflow SLA metrics measuring backlog processing latency vs. source data generation age. | `monitoring/alert_policy_system_lag.json` |
+| **In-Place Rolling Updates (`--update`)** | [`06_operations_replay_and_updates/`](06_operations_replay_and_updates/) | Resilient Operations | Upgrading running streaming pipelines with zero downtime, preserving in-flight state and offsets. | `gcloud dataflow jobs run --update --job-name=$JOB_NAME` |
+| **Pub/Sub Subscription Seek & Replay** | [`06_operations_replay_and_updates/`](06_operations_replay_and_updates/) | Disaster Recovery | Rewinding subscriber stream offsets to backfill historical timestamps without impacting production. | `gcloud pubsub subscriptions seek SUB --time="2026-10-24T12:00:00Z"` |
+| **Pub/Sub Dead-Letter Topics** | [`06_operations_replay_and_updates/`](06_operations_replay_and_updates/) | Failure Defense | Quarantining poison pills that exceed `max_delivery_attempts` to prevent worker crash loops. | `gcloud pubsub subscriptions update SUB --dead-letter-topic=TOPIC` |
+| **Deterministic Unit Testing (`TestPipeline`)**| [`07_testing_templates_and_cicd/`](07_testing_templates_and_cicd/) | Testing & CI/CD | In-memory pipeline runner with `assert_that` and `equal_to` matchers for fast unit tests. | `with TestPipeline() as p: assert_that(output, equal_to([...]))` |
+| **Unbounded Stream Testing (`TestStream`)** | [`07_testing_templates_and_cicd/`](07_testing_templates_and_cicd/) | Testing & CI/CD | Programmatically injecting elements, advancing watermarks, and firing triggers deterministically. | `TestStream().advance_watermark_to(100).add_elements([e1])` |
+| **Dataflow Flex Templates** | [`07_testing_templates_and_cicd/`](07_testing_templates_and_cicd/) | Deployment | Packaging containerized pipelines into standard Docker images on Artifact Registry. | `gcloud dataflow flex-template build gs://.../spec.json --image=...` |
+| **Private IPs & VPC Network Isolation** | [`07_testing_templates_and_cicd/`](07_testing_templates_and_cicd/) | Enterprise Security | Preventing public internet exposure on worker VMs using Private Google Access and custom subnets. | `--no_use_public_ips --subnetwork="https://www.googleapis.com/..."` |
+| **Customer-Managed Encryption Keys (CMEK)** | [`07_testing_templates_and_cicd/`](07_testing_templates_and_cicd/) | Enterprise Security | Protecting persistent disks, temporary shuffle buckets, and BigQuery tables with Cloud KMS keys. | `--dataflow_kms_key="projects/.../cryptoKeys/..."` |
+
 
 ---
 
