@@ -8,6 +8,43 @@
 
 ---
 
+## Table of Contents
+
+- [What is Google Cloud Dataflow?](#what-is-google-cloud-dataflow)
+- [Core Pillars of Google Cloud Dataflow](#core-pillars-of-google-cloud-dataflow)
+  - [1. Unified Batch and Streaming with Apache Beam](#1-unified-batch-and-streaming-with-apache-beam)
+  - [2. True Serverless & Zero-Ops Management](#2-true-serverless--zero-ops-management)
+  - [3. Dynamic Work Rebalancing (Liquid Shuffling)](#3-dynamic-work-rebalancing-liquid-shuffling)
+  - [4. Decoupled Compute and State: Streaming Engine & Dataflow Shuffle](#4-decoupled-compute-and-state-streaming-engine--dataflow-shuffle)
+  - [5. Robust Exactly-Once Semantics & Event-Time Processing](#5-robust-exactly-once-semantics--event-time-processing)
+  - [6. Dataflow Templates & Flex Templates](#6-dataflow-templates--flex-templates)
+- [Dataflow vs. Dataproc: When to Use What?](#dataflow-vs-dataproc-when-to-use-what)
+- [End-to-End Workshop Pipeline Architecture](#end-to-end-workshop-pipeline-architecture)
+- [The Workshop Storyline: From Local Beam to Enterprise Streaming](#the-workshop-storyline-from-local-beam-to-enterprise-streaming)
+  - [Chapter 01 — Apache Beam & Dataflow Fundamentals](01_beam_fundamentals/)
+  - [Chapter 02 — Deep Dive into PTransforms & BigQuery I/O](02_transforms_and_bigquery/)
+  - [Chapter 03 — Real-Time Streaming, Windowing & Late Data](03_realtime_streaming/)
+  - [Chapter 04 — Stateful Processing, Timers & Hot Key Fanout](04_stateful_processing_and_hotkeys/)
+  - [Chapter 05 — Production Performance, Streaming Engine & Observability](05_streaming_engine_and_monitoring/)
+  - [Chapter 06 — Resilient Operations, Disaster Recovery & Rolling Updates](06_operations_replay_and_updates/)
+  - [Chapter 07 — Unit Testing, Docker Flex Templates, CI/CD & Security](07_testing_templates_and_cicd/)
+- [Repository Structure](#repository-structure)
+- [Apache Beam & Dataflow Core Concepts Quick Reference](#apache-beam--dataflow-core-concepts-quick-reference)
+- [Local Environment Setup (`uv`)](#local-environment-setup-uv)
+  - [1. Install `uv`](#1-install-uv-if-not-already-installed)
+  - [2. Create or Synchronize the Virtual Environment](#2-create-or-synchronize-the-virtual-environment-uv-sync)
+  - [3. How to Activate and Use the Environment](#3-how-to-activate-and-use-the-environment)
+  - [4. Register & Select the Jupyter Kernel](#4-register--select-the-jupyter-kernel-prevents-modulenotfounderror-no-module-named-apache_beam)
+- [Google Cloud Prerequisites & Quick Start](#google-cloud-prerequisites--quick-start)
+  - [1. Authenticate and Configure GCP Project](#1-authenticate-and-configure-gcp-project)
+  - [2. Enable Required APIs](#2-enable-required-apis)
+  - [3. Create Cloud Storage Buckets](#3-create-cloud-storage-buckets)
+  - [4. Create and Configure Local `.env`](#4-create-and-configure-local-env)
+- [Companion Workshops in the Data Engineering Series](#companion-workshops-in-the-data-engineering-series)
+- [Official Documentation & Deep Dives](#official-documentation--deep-dives)
+
+---
+
 ## What is Google Cloud Dataflow?
 
 Modern data engineering demands processing both historical bounded data (daily batch files, warehouse extracts) and continuous unbounded data (clickstreams, IoT telemetry, real-time financial transactions). Historically, teams had to maintain two completely separate architectures: one engine for batch (like Hadoop/Spark) and another for streaming (like Storm/Flink)—an anti-pattern known as the **Lambda Architecture**, which resulted in duplicate pipeline logic, disparate APIs, and synchronization nightmares.

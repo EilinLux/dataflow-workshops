@@ -16,6 +16,23 @@ This chapter covers the architecture and implementation of **Stateful DoFns**, *
 
 ---
 
+## Table of Contents
+
+- [Architecture Overview](#architecture-overview)
+- [1. The Hot Key Problem: Why Increasing Workers Fails](#1-the-hot-key-problem-why-increasing-workers-fails)
+  - [The Flawed Anti-Pattern: "Add More Workers"](#the-flawed-anti-pattern-add-more-workers)
+  - [The Solution: `with_hot_key_fanout`](#the-solution-with_hot_key_fanout)
+- [2. Stateful Stream Processing with `@StateId`](#2-stateful-stream-processing-with-stateid)
+- [3. Automated State Expiration with `@TimerId`](#3-automated-state-expiration-with-timerid)
+  - [Setting the Timer](#setting-the-timer)
+  - [The Timer Callback (`@on_timer`)](#the-timer-callback-on_timer)
+- [Hands-On Execution Guide](#hands-on-execution-guide)
+  - [Step 1: Run Locally (DirectRunner)](#step-1-run-locally-directrunner)
+  - [Step 2: Deploy to Google Cloud Dataflow](#step-2-deploy-to-google-cloud-dataflow)
+- [Official Documentation & Deep Dives](#official-documentation--deep-dives)
+
+---
+
 ## Architecture Overview
 
 The pipeline ingests a highly skewed clickstream dataset where a single celebrity account generates 100x more events than typical users, fanning out into two production patterns:

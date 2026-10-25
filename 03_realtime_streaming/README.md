@@ -12,6 +12,29 @@ This chapter covers the theoretical and operational foundations of **unbounded s
 
 ---
 
+## Table of Contents
+
+- [Architecture Overview](#architecture-overview)
+- [Core Streaming Concepts: The 4 Questions](#core-streaming-concepts-the-4-questions)
+- [Event Time vs. Processing Time](#event-time-vs-processing-time)
+- [The Three Windowing Topologies](#the-three-windowing-topologies)
+  - [1. Fixed (Tumbling) Windows](#1-fixed-tumbling-windows)
+  - [2. Sliding (Hopping) Windows](#2-sliding-hopping-windows)
+  - [3. Session Windows](#3-session-windows)
+- [Watermarks, Allowed Lateness & Triggers](#watermarks-allowed-lateness--triggers)
+  - [What is a Watermark?](#what-is-a-watermark)
+  - [Handling Late Data](#handling-late-data)
+- [Google Cloud Pub/Sub with Ordering Keys](#google-cloud-pubsub-with-ordering-keys)
+- [Chapter Directory Structure](#chapter-directory-structure)
+- [Step-by-Step Hands-On Guide](#step-by-step-hands-on-guide)
+  - [Step 1: Activate the Environment](#step-1-activate-the-environment)
+  - [Step 2: Run the Pipeline Locally (DirectRunner)](#step-2-run-the-pipeline-locally-directrunner)
+  - [Step 3: Run the Streaming Generator](#step-3-run-the-streaming-generator-optional-live-simulator)
+  - [Step 4: Deploy to Google Cloud Dataflow](#step-4-deploy-to-google-cloud-dataflow)
+- [Official Documentation & Deep Dives](#official-documentation--deep-dives)
+
+---
+
 ## Architecture Overview
 
 The pipeline ingests unbounded e-commerce telemetry, isolates poison records into a Dead-Letter Queue, and fans out valid events into three parallel windowing topologies:

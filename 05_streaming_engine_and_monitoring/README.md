@@ -12,6 +12,22 @@ This chapter covers the production architecture of **Dataflow Streaming Engine**
 
 ---
 
+## Table of Contents
+
+- [Architecture Overview](#architecture-overview)
+- [1. Dataflow Streaming Engine & Dataflow Shuffle](#1-dataflow-streaming-engine--dataflow-shuffle)
+- [2. Diagnosing System Lag vs. Data Freshness](#2-diagnosing-system-lag-vs-data-freshness)
+- [3. Horizontal Autoscaling Tuning](#3-horizontal-autoscaling-tuning)
+- [4. Step-Level Latency Profiling with Beam Metrics](#4-step-level-latency-profiling-with-beam-metrics)
+- [5. Automated SLA Alerting & Cloud Monitoring Dashboard](#5-automated-sla-alerting--cloud-monitoring-dashboard)
+- [Hands-On Execution Guide](#hands-on-execution-guide)
+  - [Step 1: Run Local Benchmark (DirectRunner)](#step-1-run-local-benchmark-directrunner)
+  - [Step 2: Deploy to Google Cloud Dataflow with Observability](#step-2-deploy-to-google-cloud-dataflow-with-observability)
+  - [Step 3: Deploy Cloud Monitoring Alert Policies & Dashboard](#step-3-deploy-cloud-monitoring-alert-policies--dashboard)
+- [Official Documentation & Deep Dives](#official-documentation--deep-dives)
+
+---
+
 ## Architecture Overview
 
 The pipeline executes a high-volume benchmark workload, tracks step-level execution latency with Beam `Metrics.distribution`, offloads state and shuffle to Google Cloud Streaming Engine, and exports operational signals to Cloud Monitoring:

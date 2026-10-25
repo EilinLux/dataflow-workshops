@@ -17,6 +17,27 @@ This final chapter brings together the entire software development lifecycle (SD
 
 ---
 
+## Table of Contents
+
+- [Architecture Overview](#architecture-overview)
+- [1. Unit Testing with `TestPipeline`, `PAssert` & `TestStream`](#1-unit-testing-with-testpipeline-passert--teststream)
+  - [`TestPipeline` & `PAssert`](#testpipeline--passert)
+  - [`TestStream`: Testing Unbounded Streams & Watermarks](#teststream-testing-unbounded-streams--watermarks)
+- [2. Containerized Dataflow Flex Templates](#2-containerized-dataflow-flex-templates)
+  - [Flex Template Packaging](#flex-template-packaging)
+- [3. Automated CI/CD with Google Cloud Build](#3-automated-cicd-with-google-cloud-build)
+- [4. Enterprise Security Hardening](#4-enterprise-security-hardening)
+  - [1. Private IPs (`--no-use-public-ips`)](#1-private-ips---no-use-public-ips)
+  - [2. Private Google Access & Custom Subnets](#2-private-google-access--custom-subnets)
+  - [3. Customer-Managed Encryption Keys (CMEK)](#3-customer-managed-encryption-keys-cmek)
+- [Hands-On Execution Guide](#hands-on-execution-guide)
+  - [Step 1: Run Unit Tests Locally](#step-1-run-unit-tests-locally)
+  - [Step 2: Build & Register the Flex Template](#step-2-build--register-the-flex-template)
+  - [Step 3: Run the Flex Template with Enterprise Security](#step-3-run-the-flex-template-with-enterprise-security)
+- [Official Documentation & Deep Dives](#official-documentation--deep-dives)
+
+---
+
 ## Architecture Overview
 
 The end-to-end testing, packaging, delivery, and security architecture is shown below:

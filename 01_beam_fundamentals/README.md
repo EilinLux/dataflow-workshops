@@ -1,5 +1,21 @@
 # Chapter 01 — Apache Beam & Dataflow Fundamentals
 
+## Table of Contents
+
+- [Overview](#overview)
+  - [What You Will Learn](#what-you-will-learn)
+- [Chapter Contents](#chapter-contents)
+- [Pipeline Architecture & DAG Syntax](#pipeline-architecture--dag-syntax)
+  - [Visual Shape Legend](#visual-shape-legend)
+  - [What Does the "Unique Transform Name" Stand For?](#what-does-the-unique-transform-name-stand-for)
+- [Environment Setup & Activating the Kernel](#environment-setup--activating-the-kernel)
+- [Quick Start: Running the Pipeline](#quick-start-running-the-pipeline)
+  - [1. Run Locally with DirectRunner](#1-run-locally-with-directrunner)
+  - [2. Run on Google Cloud Dataflow](#2-run-on-google-cloud-dataflow)
+- [Official Documentation & Deep Dives](#official-documentation--deep-dives)
+
+---
+
 ## Overview
 
 In this chapter, we introduce the core concepts of the **Apache Beam** unified programming model and explore how **Google Cloud Dataflow** executes Beam pipelines at scale. 

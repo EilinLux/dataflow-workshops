@@ -17,6 +17,24 @@ This chapter covers the operational discipline required to run enterprise stream
 
 ---
 
+## Table of Contents
+
+- [Architecture Overview](#architecture-overview)
+- [1. Zero-Downtime In-Place Updates (`--update`)](#1-zero-downtime-in-place-updates---update)
+  - [The Solution: Dataflow Update Command](#the-solution-dataflow-update-command)
+  - [Graph Compatibility Rules](#graph-compatibility-rules)
+- [2. Disaster Recovery via Pub/Sub Subscription Seek](#2-disaster-recovery-via-pubsub-subscription-seek)
+  - [The Production Flaw: Seeking the Live Subscription](#the-production-flaw-seeking-the-live-subscription)
+  - [The Production Gold Standard: Dedicated Recovery Subscription](#the-production-gold-standard-dedicated-recovery-subscription)
+- [3. Pub/Sub Dead-Letter Topics & Poison Pill Defense](#3-pubsub-dead-letter-topics--poison-pill-defense)
+- [Hands-On Execution Guide](#hands-on-execution-guide)
+  - [Step 1: Simulate Rolling Update Locally (DirectRunner)](#step-1-simulate-rolling-update-locally-directrunner)
+  - [Step 2: Deploy and Perform In-Place Update on Cloud Dataflow](#step-2-deploy-and-perform-in-place-update-on-cloud-dataflow)
+  - [Step 3: Execute Disaster Recovery Seek Replay](#step-3-execute-disaster-recovery-seek-replay)
+- [Official Documentation & Deep Dives](#official-documentation--deep-dives)
+
+---
+
 ## Architecture Overview
 
 The diagram below contrasts in-place rolling updates with isolated disaster recovery replay:

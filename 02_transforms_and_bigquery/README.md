@@ -1,5 +1,23 @@
 # Chapter 02 — Advanced Transforms, Side Inputs & BigQuery I/O
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Pipeline Architecture & DAG](#pipeline-architecture--dag)
+- [Core Concepts Deep Dive](#core-concepts-deep-dive)
+  - [1. `DoFn` Lifecycle Methods](#1-dofn-lifecycle-methods)
+  - [2. Side Inputs (`beam.pvalue.AsDict`)](#2-side-inputs-beampvalueasdict)
+  - [3. Tagged Multi-Outputs & Dead-Letter Queues (DLQ)](#3-tagged-multi-outputs--dead-letter-queues-dlq)
+  - [4. BigQuery Storage Write API](#4-bigquery-storage-write-api)
+- [Chapter Contents](#chapter-contents)
+- [Environment Setup & Activating the Kernel](#environment-setup--activating-the-kernel)
+- [Quick Start: Running the Pipeline](#quick-start-running-the-pipeline)
+  - [1. Run Locally with DirectRunner](#1-run-locally-with-directrunner)
+  - [2. Deploy to Google Cloud Dataflow & BigQuery](#2-deploy-to-google-cloud-dataflow--bigquery)
+- [Official Documentation & Deep Dives](#official-documentation--deep-dives)
+
+---
+
 ## Overview
 
 In production data engineering, raw inputs are rarely clean, and business logic often requires enriching in-flight records against dimension tables (such as product catalogs, customer tiers, or currency exchange rates). Furthermore, a single corrupt or unparseable record must never halt a 24/7 mission-critical pipeline or be silently discarded.
