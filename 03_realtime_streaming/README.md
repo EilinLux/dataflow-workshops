@@ -14,6 +14,7 @@ This chapter covers the theoretical and operational foundations of **unbounded s
 
 ## Table of Contents
 
+- [Real-World Production Problem & Storyline](#real-world-production-problem--storyline)
 - [Architecture Overview](#architecture-overview)
 - [Core Streaming Concepts: The 4 Questions](#core-streaming-concepts-the-4-questions)
 - [Event Time vs. Processing Time](#event-time-vs-processing-time)
@@ -32,6 +33,32 @@ This chapter covers the theoretical and operational foundations of **unbounded s
   - [Step 3: Run the Streaming Generator](#step-3-run-the-streaming-generator-optional-live-simulator)
   - [Step 4: Deploy to Google Cloud Dataflow](#step-4-deploy-to-google-cloud-dataflow)
 - [Official Documentation & Deep Dives](#official-documentation--deep-dives)
+
+---
+
+## Real-World Production Problem & Storyline
+
+### The Scenario: The Black Friday Real-Time Pivot
+Black Friday arrives. OmniRetail launches nationwide flash sales. Flash checkout volume spikes to 50,000 orders/minute. Fraud rings deploy bot swarms purchasing limited-inventory items in milliseconds. Inventory managers cannot wait for a midnight batch report—they need rolling 60-second velocity metrics and immediate session alerts.
+
+### The Production Disaster (Why Batch Paradigms Fail)
+1. **The 24-Hour Blind Spot**: A batch pipeline only knows what happened yesterday. Fraud rings exploit this latency to place fraudulent orders and transfer funds before the batch job reconciles.
+2. **Network Lag & Out-of-Order Packets**: In the real world, mobile shoppers on flaky 4G/5G networks experience packet delays. A customer purchase timestamped at 10:00:05 AM may arrive at our server at 10:04:12 AM. Naively grouping by processing time (arrival wall-clock) corrupts metrics and misattributes sales to wrong hours.
+3. **Poison Streaming Crashes**: In streaming, a single unhandled poison message causes infinite redelivery and worker restart loops, freezing stream processing.
+
+### How This Chapter's Demo Solves It
+We pivot our architecture to unbounded stream processing with **Google Cloud Pub/Sub** and Apache Beam:
+- **Ordering Keys**: Guarantees per-user FIFO message ordering across distributed Pub/Sub partitions.
+- **Event-Time Semantics & `TimestampedValue`**: Reconstructs true real-world order based on when the transaction happened, independent of when packets arrived.
+- **The Three Windowing Topologies**:
+  - **Fixed (Tumbling) Windows (60s)**: Discrete non-overlapping financial buckets with watermark triggers.
+  - **Sliding (Hopping) Windows (60s size, 20s period)**: Smooth moving averages tracking real-time checkout velocity.
+  - **Session Windows (30s gap)**: Dynamic user activity bursts identifying bot swarms vs. human shoppers.
+- **Watermark Triggers & Allowed Lateness**: Emits speculative early results immediately, while allowing late-arriving packets to update window sums.
+
+### Storyline Connection
+- ⬅️ **Previously (Chapter 02)**: Hardened batch pipelines with Side Inputs and Dead-Letter Queues.
+- ➡️ **Next Crisis (Chapter 04)**: A celebrity influencer tweets an endorsement, sending 80% of nationwide traffic to a single user key. The single worker crashes with a hot key error, while shopping cart memory leaks exhaust worker RAM!
 
 ---
 

@@ -3,6 +3,7 @@
 ## Table of Contents
 
 - [Overview](#overview)
+- [Real-World Production Problem & Storyline](#real-world-production-problem--storyline)
 - [Pipeline Architecture & DAG](#pipeline-architecture--dag)
 - [Core Concepts Deep Dive](#core-concepts-deep-dive)
   - [1. `DoFn` Lifecycle Methods](#1-dofn-lifecycle-methods)
@@ -131,6 +132,28 @@ Dataflow's `beam.io.WriteToBigQuery` supports modern high-performance ingestion:
 * **`Method.STORAGE_WRITE_API`**: Uses Google Cloud's gRPC-based BigQuery Storage Write API.
 * **Cost Efficiency**: Eliminates legacy streaming insert costs ($0.05 per GB) while achieving significantly higher throughput.
 * **Schema Handling**: Setting `create_disposition=CREATE_IF_NEEDED` automatically provisions the BigQuery dataset and table schema if it does not already exist.
+
+---
+
+## Real-World Production Problem & Storyline
+
+### The Scenario: Dimension Enrichment & Corrupt POS Payloads
+OmniRetail's finance team now requires every transaction to be enriched with category metadata and wholesale costs from a reference product dimension (`data/product_catalog.json`). Meanwhile, legacy cash register firmware updates begin emitting corrupted payloads: negative subtotals (`amount: -45.00`), missing product IDs, and unparseable dates.
+
+### The Production Disaster (Without Side Inputs & Dead-Letter Queues)
+1. **The Join Shuffle Explosion**: Joining transactions with the catalog using standard `CoGroupByKey` forces Dataflow to hash and shuffle both datasets across the network, multiplying execution time and network egress costs by 5x.
+2. **The "Poison Pill" Pipeline Crash**: When a worker encounters `subtotal: -45.00` or an unparseable date, Python throws an unhandled exception. Dataflow retries the bundle 4 times before terminating the entire 4-hour batch pipeline with `Workflow failed`.
+3. **The Unacceptable Alternative (Silent Dropping)**: Silently ignoring errors in a `try/except: pass` block leads to audit failure because corrupt transactions vanish from financial accounting without a trace.
+
+### How This Chapter's Demo Solves It
+We implement production-grade validation and enrichment patterns:
+- **Side Inputs (`beam.pvalue.AsDict`)**: Broadcasts the reference catalog to all workers as an in-memory dictionary. Workers perform instant $O(1)$ lookups with zero cross-network join shuffles.
+- **Tagged Multi-Outputs (`TaggedOutput`)**: Branches records cleanly: valid rows go to the main stream, while corrupt rows are tagged into `dead_letter`.
+- **Dual-Sink Routing**: Valid enriched records stream into BigQuery using the high-performance **BigQuery Storage Write API**, while quarantined poison pills are written to Cloud Storage (`dead_letter_records-*.json`) for immediate triage.
+
+### Storyline Connection
+- ⬅️ **Previously (Chapter 01)**: Built distributed batch pipelines with Beam fundamentals.
+- ➡️ **Next Crisis (Chapter 03)**: Black Friday flash sales hit. Waiting 24 hours for midnight batch files means fraudulent bot rings drain sneaker inventory before alerts trigger. We must pivot to real-time streaming!
 
 ---
 

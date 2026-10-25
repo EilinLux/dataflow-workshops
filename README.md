@@ -204,45 +204,41 @@ flowchart LR
     P1 --> P2 --> P3
 ```
 
-### Chapter 01 — Apache Beam & Dataflow Fundamentals (`01_beam_fundamentals/`)
-* Understanding the Beam execution abstraction: Drivers, Workers, PCollections, and PTransforms.
-* Local development and unit testing with `DirectRunner`.
-* Submitting your first batch pipeline to **Google Cloud Dataflow** (`DataflowRunner`).
-* Inspecting job execution graphs and step metrics in the Google Cloud Console.
+This workshop follows the engineering journey of **OmniRetail**, a global omnichannel commerce platform scaling from fragile batch jobs to a resilient, enterprise-grade streaming architecture:
 
-### Chapter 02 — Deep Dive into PTransforms & BigQuery I/O (`02_transforms_and_bigquery/`)
-* Mastering `beam.ParDo` and custom `DoFn` lifecycle methods (`setup`, `process`, `teardown`).
-* Sharing reference data using **Side Inputs** (`beam.pvalue.AsDict`, `beam.pvalue.AsList`).
-* Branching data streams with **Tagged Multi-Outputs** (`beam.Tag`, dead-letter queues).
-* Efficient high-throughput reads and writes using the **BigQuery Storage Write API**.
+### Chapter 01 — The Batch Reconciliation Starting Line (`01_beam_fundamentals/`)
+* **The Business Crisis**: Nightly store reconciliation scripts written in single-node pandas crash with `MemoryError` when sales logs hit 50GB, causing the finance team to miss their 6:00 AM executive reporting deadline.
+* **The Production Solution**: Adopt the **Apache Beam** distributed computing model. Build an auto-scaling batch pipeline with `beam.io.ReadFromText`, custom `DoFn` parsing, and `CombinePerKey` local combining, runnable on `DirectRunner` locally and Google Cloud `DataflowRunner` in production.
+* **Storyline Connection**: With batch scaling solved, marketing launches a product catalog, but incoming sales files now contain malformed records and unmapped IDs that silently crash the nightly run.
 
-### Chapter 03 — Real-Time Streaming, Windowing & Late Data (`03_realtime_streaming/`)
-* Ingesting unbounded telemetry from **Google Cloud Pub/Sub** with **Ordering Keys**.
-* Implementing temporal aggregation: **Fixed (Tumbling)**, **Sliding (Hopping)** for moving averages, and **Session Windows** (activity gaps).
-* Mastering event-time vs. processing-time, watermarks, allowed lateness, and accumulation triggers (preliminary results + late updates).
-* Isolating unparseable poison messages into dead-letter sinks.
+### Chapter 02 — Dimension Enrichment & The Poison Pill Crisis (`02_transforms_and_bigquery/`)
+* **The Business Crisis**: Finance demands every sale be enriched with live catalog dimensions (profit margins, categories). A naive `CoGroupByKey` join shuffles gigabytes of data across workers, exploding cloud costs. Worse, a single corrupt record (`amount: -45.00`) causes worker crash loops, failing the entire 4-hour batch job.
+* **The Production Solution**: Broadcast the reference dimension catalog to workers as an in-memory **Side Input** (`beam.pvalue.AsDict`) for $O(1)$ lookups without shuffle overhead. Implement **Tagged Multi-Outputs** to route valid records to BigQuery via the **Storage Write API** while isolating poison pills to a Cloud Storage **Dead-Letter Queue (DLQ)** with zero downtime.
+* **Storyline Connection**: Batch ingestion is now crash-proof and enriched. But Black Friday arrives, and waiting for midnight batch reports means inventory stock-outs and fraudulent purchases are discovered 24 hours too late.
 
-### Chapter 04 — Stateful Processing, Timers & Hot Key Fanout (`04_stateful_processing_and_hotkeys/`)
-* Stateful stream processing using `@StateId` (ValueState / BagState) for per-key rolling statistics without external databases.
-* Automated state expiration and scheduled window calculations using `@TimerId`.
-* Mitigating data skew and hot key errors using `CombinePerKey` with **`withHotKeyFanout`**.
+### Chapter 03 — Black Friday Flash Sales — The Real-Time Streaming Pivot (`03_realtime_streaming/`)
+* **The Business Crisis**: Black Friday flash sales hit 50,000 orders/minute. Fraud bots purchase sneaker inventory in seconds, while mobile network latency causes orders to arrive minutes out-of-order. Waiting for midnight batch files means fraudulent orders ship before they are flagged.
+* **The Production Solution**: Pivot to unbounded stream processing with **Google Cloud Pub/Sub** and **Ordering Keys**. Implement event-time windowing to answer the 4 questions: **Fixed (Tumbling)** 60s windows for volume, **Sliding** 60s/20s moving velocity, and **Session Windows** for user burst tracking, using **Watermarks** and **Triggers** to gracefully handle late-arriving data.
+* **Storyline Connection**: The stream engine processes events continuously. But suddenly, a mega-influencer shares a product link, concentrating 80% of platform traffic on a single key while shopping cart memory leaks crash worker VMs!
 
-### Chapter 05 — Production Performance, Streaming Engine & Observability (`05_streaming_engine_and_monitoring/`)
-* Leveraging **Dataflow Streaming Engine** and **Dataflow Shuffle** to offload state and slash worker VM costs.
-* Diagnosing **System Lag**, **Data Freshness**, and step-level execution time.
-* Tuning horizontal autoscaling: `maxNumWorkers`, `minNumWorkers`, and worker machine types.
-* Configuring Cloud Monitoring SLA alerts with notification channels (Slack / PagerDuty).
+### Chapter 04 — The Celebrity Influencer Disaster & Session State Leaks (`04_stateful_processing_and_hotkeys/`)
+* **The Business Crisis**: A top influencer with 80M followers posts an endorsement. 100,000 events/second route to a single user key (`usr_hot_influencer`). Dataflow routes all traffic for that key to a **single worker VM**, causing CPU exhaustion and the fatal Dataflow error: `A hot key was detected in step...`. Meanwhile, storing per-user carts without cleanup leaks memory until workers crash.
+* **The Production Solution**: Eliminate the hot key bottleneck using **`CombinePerKey().withHotKeyFanout(10)`**, dynamically salting traffic across 10 intermediate workers for local pre-aggregation. Implement per-key persistent state using **Stateful `DoFn`** (`@StateId`), with **Automated State Expiration Timers** (`@TimerId`) to flush cart profiles and garbage-collect memory upon inactivity.
+* **Storyline Connection**: The pipeline absorbs severe key skew without breaking a sweat. But on Cyber Monday, the executive dashboard suddenly goes blank, revenue numbers are 20 minutes stale, and persistent disk shuffle is thrashing worker VMs.
 
-### Chapter 06 — Resilient Operations, Disaster Recovery & Rolling Updates (`06_operations_replay_and_updates/`)
-* In-place **Zero-Downtime Streaming Updates** (`gcloud dataflow jobs run --update`) maintaining state compatibility.
-* Disaster recovery using **Pub/Sub Message Retention** and **Subscription Seek** to safely replay 24 hours of data.
-* Configuring Pub/Sub Dead-Letter Topics with maximum delivery attempt policies.
+### Chapter 05 — The "Black Screen" Crisis — Streaming Engine & Observability (`05_streaming_engine_and_monitoring/`)
+* **The Business Crisis**: Cyber Monday 2:00 PM: The executive dashboard shows stale numbers, and alarms go off. Are orders dropping? Is Pub/Sub backlogged? Workers are pinned at 100% disk IOPS due to local persistent disk shuffle thrashing, inflating monthly cloud bills.
+* **The Production Solution**: Decouple compute from state storage by enabling **Dataflow Streaming Engine** (`--enable_streaming_engine`), offloading state and shuffle to Google-managed infrastructure so stateless VMs can autoscale in seconds. Profile step latency with Beam `Metrics.distribution`, and deploy **Cloud Monitoring Alert Policies** to distinguish between **System Lag** (processing backlog) and **Data Freshness** (output record age).
+* **Storyline Connection**: The pipeline runs with optimized Streaming Engine and SLA observability. Then, a production emergency strikes: a critical tax calculation bug is deployed, and we must patch the running pipeline and re-process the past 24 hours without customer downtime!
 
-### Chapter 07 — Unit Testing, Docker Flex Templates, CI/CD & Security (`07_testing_templates_and_cicd/`)
-* Deterministic unit testing using `TestPipeline`, `PAssert`, and `TestStream`.
-* Packaging production pipelines into containerized **Dataflow Flex Templates** stored in **Artifact Registry**.
-* Automated Cloud Build CI/CD verification pipelines.
-* Enterprise security: Private IPs (`--no-use-public-ips`), Private Google Access, VPC Service Controls, and Customer-Managed Encryption Keys (**CMEK**).
+### Chapter 06 — Production Fire Drill — In-Place Updates & 24h Disaster Recovery (`06_operations_replay_and_updates/`)
+* **The Business Crisis**: An audit reveals a tax calculation defect in production. Canceling the pipeline causes customer checkout timeouts, while restarting it loses in-flight state. Furthermore, we must re-calculate 24 hours of corrupted transactions without duplicating live production orders.
+* **The Production Solution**: Execute a **Zero-Downtime In-Place Rolling Update** (`gcloud dataflow jobs run --update`) with verified transform name compatibility, seamlessly draining V1 in-flight bundles while routing new events to V2. Execute disaster recovery by creating an isolated Pub/Sub recovery subscription, **seeking** to $T - 24\text{h}$, backfilling to a BigQuery staging table, and performing an atomic partition swap with zero live customer impact.
+* **Storyline Connection**: Live upgrades and historical disaster recovery are battle-tested. Finally, the CISO and enterprise compliance team step in: running manual shell scripts with public IPs and default encryption fails regulatory audits!
+
+### Chapter 07 — Enterprise Governance, Security Hardening & Automated CI/CD (`07_testing_templates_and_cicd/`)
+* **The Business Crisis**: Corporate security blocks deployment: worker VMs have public IPs exposed to the internet, disks lack Customer-Managed Encryption Keys (CMEK), and manual script deployments lack automated unit testing—failing SOC2 and PCI-DSS compliance audits.
+* **The Production Solution**: Implement deterministic quality engineering using **`TestPipeline`**, **`PAssert`**, and **`TestStream`** (testing streaming watermarks without GCP dependencies). Package pipelines into containerized **Dataflow Flex Templates** on **Artifact Registry**, automate testing and deployment with **Cloud Build**, and lock down security using **Private IPs** (`--no-use-public-ips`), Private Google Access, and **Cloud KMS CMEK encryption** (`--dataflow_kms_key`).
 
 ---
 

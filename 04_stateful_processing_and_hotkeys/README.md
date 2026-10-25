@@ -18,6 +18,7 @@ This chapter covers the architecture and implementation of **Stateful DoFns**, *
 
 ## Table of Contents
 
+- [Real-World Production Problem & Storyline](#real-world-production-problem--storyline)
 - [Architecture Overview](#architecture-overview)
 - [1. The Hot Key Problem: Why Increasing Workers Fails](#1-the-hot-key-problem-why-increasing-workers-fails)
   - [The Flawed Anti-Pattern: "Add More Workers"](#the-flawed-anti-pattern-add-more-workers)
@@ -30,6 +31,31 @@ This chapter covers the architecture and implementation of **Stateful DoFns**, *
   - [Step 1: Run Locally (DirectRunner)](#step-1-run-locally-directrunner)
   - [Step 2: Deploy to Google Cloud Dataflow](#step-2-deploy-to-google-cloud-dataflow)
 - [Official Documentation & Deep Dives](#official-documentation--deep-dives)
+
+---
+
+## Real-World Production Problem & Storyline
+
+### The Scenario: The Celebrity Influencer Disaster & Session Leaks
+At 11:00 AM, a mega-influencer with 80 million followers shares an OmniRetail promotional link. Within 15 seconds, platform traffic spikes by 20x, but 80% of all events are associated with a single key (`usr_hot_influencer`). Simultaneously, the product team deploys a shopping cart tracker to calculate per-user rolling spend and page history without querying an external database.
+
+### The Production Disaster (Without Hot Key Fanout & Timers)
+1. **The Hot Key Crash**: Standard stream engines route elements with the same key to the same worker to preserve state. When 100,000 events/second share the influencer key, Dataflow routes all 100,000 events to a **single worker VM**. That worker's CPU spikes to 100%, memory explodes, and Dataflow throws:
+   ```text
+   Workflow failed. Causes: A hot key was detected in step...
+   ```
+   Auto-scaling fails to resolve this: spinning up 50 new worker VMs does nothing because all 50 workers sit idle while the single hot worker suffocates!
+2. **The Unbounded State Memory Leak**: Storing per-user cart history in worker state without automated cleanup means millions of guest users who browse once and leave retain state in memory forever, eventually causing worker Out-Of-Memory (OOM) crashes.
+
+### How This Chapter's Demo Solves It
+We resolve key skew and stateful stream management using Beam's advanced state API:
+- **Hot Key Fanout (`CombinePerKey().withHotKeyFanout(10)`)**: Dynamically salts hot keys with random integers $0..9$, spreading the influencer load across 10 intermediate workers for local pre-combining before merging into the final total, eliminating hot key bottlenecks.
+- **Stateful `DoFn` (`@StateId`)**: Tracks per-key accumulators (`ReadModifyWriteStateSpec`) and page click history (`BagStateSpec`) directly in worker memory without database network latency.
+- **Automated State Expiration Timers (`@TimerId`)**: Sets a watermark inactivity timer (60s). When a user goes inactive, the `@on_timer` callback flushes the finalized user profile to BigQuery and purges state with `clear()`, permanently preventing memory leaks.
+
+### Storyline Connection
+- ⬅️ **Previously (Chapter 03)**: Implemented real-time Pub/Sub streaming with tumbling, sliding, and session windows.
+- ➡️ **Next Crisis (Chapter 05)**: Cyber Monday peak hits. The executive dashboard suddenly goes blank, numbers are 20 minutes behind, and persistent disk shuffle is thrashing worker VMs!
 
 ---
 

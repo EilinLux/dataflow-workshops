@@ -19,6 +19,7 @@ This chapter covers the operational discipline required to run enterprise stream
 
 ## Table of Contents
 
+- [Real-World Production Problem & Storyline](#real-world-production-problem--storyline)
 - [Architecture Overview](#architecture-overview)
 - [1. Zero-Downtime In-Place Updates (`--update`)](#1-zero-downtime-in-place-updates---update)
   - [The Solution: Dataflow Update Command](#the-solution-dataflow-update-command)
@@ -32,6 +33,27 @@ This chapter covers the operational discipline required to run enterprise stream
   - [Step 2: Deploy and Perform In-Place Update on Cloud Dataflow](#step-2-deploy-and-perform-in-place-update-on-cloud-dataflow)
   - [Step 3: Execute Disaster Recovery Seek Replay](#step-3-execute-disaster-recovery-seek-replay)
 - [Official Documentation & Deep Dives](#official-documentation--deep-dives)
+
+---
+
+## Real-World Production Problem & Storyline
+
+### The Scenario: Production Bug Fire Drill & 24h Disaster Recovery
+An emergency audit reveals a critical revenue calculation bug in production: the pipeline omitted a 10% loyalty discount for orders $\ge \$100$, overcharging VIP customers for the past 24 hours. A patch is developed (`resilient_stream_v2.py`).
+
+### The Production Disaster (Why Standard Restarts Fail)
+1. **The Downtime Dilemma**: You cannot simply `cancel` a 24/7 streaming pipeline. Canceling drops in-flight bundles and causes Pub/Sub backlogs that trigger checkout timeouts for live customers.
+2. **The Disaster Recovery Danger**: We need to re-process the corrupted 24 hours of data. If an engineer naively rewinds (`gcloud pubsub subscriptions seek`) the live production subscription, historical messages flood the live pipeline, causing duplicate billing, duplicate BigQuery rows, and massive customer confusion!
+
+### How This Chapter's Demo Solves It
+We execute a multi-tier resilience and disaster recovery protocol:
+- **Zero-Downtime In-Place Rolling Update (`--update`)**: Upgrades code on the live Dataflow job. Because transform names (`IngestOrders`, `CalculateTaxes`, `WriteToSink`) are strictly preserved, Dataflow drains in-flight bundles on V1 while seamlessly routing new incoming events to V2 with zero downtime and zero dropped records.
+- **Pub/Sub Dead-Letter Topics**: Sets `--dead-letter-topic` with `--max-delivery-attempts=5` to prevent poison pills from causing infinite worker crash loops.
+- **Isolated Subscription Seek Disaster Recovery**: Leverages Pub/Sub's 7-day retention to create a dedicated recovery subscription (`orders-recovery-backfill-sub`), seeks it to $T - 24\text{h}$, processes backfill records into a temporary BigQuery staging table, and executes an atomic partition swap with zero impact on live shoppers.
+
+### Storyline Connection
+- ⬅️ **Previously (Chapter 05)**: Enabled Streaming Engine and configured Cloud Monitoring SLA alert policies.
+- ➡️ **Next Crisis (Chapter 07)**: Security and compliance step in: running manual shell scripts with public IPs and default encryption fails SOC2 and PCI-DSS audits!
 
 ---
 

@@ -14,6 +14,7 @@ This chapter covers the production architecture of **Dataflow Streaming Engine**
 
 ## Table of Contents
 
+- [Real-World Production Problem & Storyline](#real-world-production-problem--storyline)
 - [Architecture Overview](#architecture-overview)
 - [1. Dataflow Streaming Engine & Dataflow Shuffle](#1-dataflow-streaming-engine--dataflow-shuffle)
 - [2. Diagnosing System Lag vs. Data Freshness](#2-diagnosing-system-lag-vs-data-freshness)
@@ -25,6 +26,33 @@ This chapter covers the production architecture of **Dataflow Streaming Engine**
   - [Step 2: Deploy to Google Cloud Dataflow with Observability](#step-2-deploy-to-google-cloud-dataflow-with-observability)
   - [Step 3: Deploy Cloud Monitoring Alert Policies & Dashboard](#step-3-deploy-cloud-monitoring-alert-policies--dashboard)
 - [Official Documentation & Deep Dives](#official-documentation--deep-dives)
+
+---
+
+## Real-World Production Problem & Storyline
+
+### The Scenario: The Cyber Monday "Black Screen" & SLA Breach
+It is Cyber Monday at 2:00 PM. The executive monitoring dashboard turns red. The VP of Engineering calls: *"Why is the live revenue chart showing numbers from 20 minutes ago? Are we losing orders?"* Meanwhile, our monthly GCP bill is skyrocketing, and Dataflow worker persistent disks are thrashing at 100% IOPS.
+
+### The Production Disaster (Without Streaming Engine & SLA Metrics)
+1. **The Worker Disk Shuffle Bottleneck**: By default, Dataflow workers store window state, timers, and shuffle buffers on local Compute Engine persistent disks (PD). Under high throughput, disk resizing delays and disk IOPS bottlenecks consume all worker CPU just managing disk buffers rather than processing orders.
+2. **The Blind Troubleshooting Trap**: When dashboards show stale data, engineers don't know where the problem is:
+   - Is Pub/Sub ingestion paused?
+   - Is the pipeline backlogged because workers lack compute capacity?
+   - Is a specific transform step taking too long to execute?
+   Without separate **System Lag** and **Data Freshness** metrics, troubleshooting takes hours of guesswork.
+
+### How This Chapter's Demo Solves It
+We decouple compute from state storage and deploy production observability:
+- **Dataflow Streaming Engine (`--enable_streaming_engine`)**: Offloads window state, timers, and shuffle operations from worker disks to a dedicated Google-managed backend service. Worker VMs become stateless compute nodes that autoscale horizontally in seconds without disk resizing delays.
+- **Step Latency Instrumentation**: Uses Apache Beam `Metrics.distribution` inside `DoFn` steps to measure millisecond execution time distributions.
+- **SLA Alerting Policies & Dashboard**: Deploys automated Cloud Monitoring alert policies:
+  - **`system_lag > 120s`**: Triggers when processing throughput falls behind ingestion rate.
+  - **`data_freshness > 300s`**: Triggers when output data becomes stale.
+
+### Storyline Connection
+- ⬅️ **Previously (Chapter 04)**: Mitigated hot keys with fanout and managed stateful sessions with timers.
+- ➡️ **Next Crisis (Chapter 06)**: An emergency tax calculation bug is deployed to production. If we stop the job, we lose live transactions! And we must re-calculate the last 24 hours of distorted revenue without impacting live customers.
 
 ---
 

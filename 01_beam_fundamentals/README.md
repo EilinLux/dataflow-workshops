@@ -4,6 +4,7 @@
 
 - [Overview](#overview)
   - [What You Will Learn](#what-you-will-learn)
+- [Real-World Production Problem & Storyline](#real-world-production-problem--storyline)
 - [Chapter Contents](#chapter-contents)
 - [Pipeline Architecture & DAG Syntax](#pipeline-architecture--dag-syntax)
   - [Visual Shape Legend](#visual-shape-legend)
@@ -38,6 +39,29 @@ You will build your first data pipeline processing the **Retail Sales** dataset 
 3. **Execution Environments (Runners)**:
    * **`DirectRunner`**: Local execution for fast iteration, debugging, and unit tests without cloud costs.
    * **`DataflowRunner`**: Managed distributed execution on Google Cloud with auto-scaling and dynamic work rebalancing.
+
+---
+
+## Real-World Production Problem & Storyline
+
+### The Scenario: The Midnight Batch Breakdown
+OmniRetail operates 500 retail stores nationwide. Every midnight, cash registers dump raw CSV transaction logs into Google Cloud Storage (`data/sales_data.csv`). The CFO and finance leadership require an aggregated daily revenue report by product category by 6:00 AM for morning inventory restocking and supplier settlements.
+
+### The Production Disaster (Without Apache Beam)
+Previously, the engineering team executed a single-node Python script using pandas on a Compute Engine VM. As business volume scaled to tens of millions of transactions:
+1. **The `MemoryError` Wall**: Loading multi-gigabyte CSV files into pandas DataFrames consumed all VM RAM, crashing with unhandled Out-Of-Memory (OOM) errors at 3:30 AM.
+2. **Zero Fault Tolerance**: When a 3-hour job fails at 90% completion, all intermediate progress is lost and the entire job must restart from scratch, guaranteeing a missed 6:00 AM SLA.
+3. **No Elastic Scaling**: Scaling up required provisioning a massive `m2-ultramem` instance that sat idle for 20 hours a day, inflating cloud bills.
+
+### How This Chapter's Demo Solves It
+We replace the fragile single-node script with a distributed **Apache Beam** batch pipeline:
+- **`beam.io.ReadFromText`**: Reads massive files in parallel chunks without exhausting worker memory.
+- **Custom `DoFn` (`ParseSalesRecordFn`, `FilterByDateFn`)**: Parses records into typed dictionaries and isolates business logic.
+- **`CombinePerKey(sum)`**: Executes partial combiner aggregation locally on worker VMs before distributed shuffle, slashing network transfer.
+- **Run Anywhere**: Developers test locally on workstation sample data with **`DirectRunner`**, then deploy to **`DataflowRunner`** where Google Cloud provisions, balances, and tears down worker VMs automatically.
+
+### Storyline Connection
+- ➡️ **Next Crisis (Chapter 02)**: Batch scaling is solved, but marketing introduces an auxiliary product dimension catalog, and cash register glitches inject corrupt records with negative subtotals that silently crash the nightly run!
 
 ---
 
