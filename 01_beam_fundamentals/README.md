@@ -9,6 +9,12 @@
 - [Pipeline Architecture & DAG Syntax](#pipeline-architecture--dag-syntax)
   - [Visual Shape Legend](#visual-shape-legend)
   - [What Does the "Unique Transform Name" Stand For?](#what-does-the-unique-transform-name-stand-for)
+- [Core Concepts Deep Dive: DoFn vs. beam.ParDo](#core-concepts-deep-dive-dofn-vs-beam-pardo)
+  - [The Core Distinction: Logic vs. Execution Harness](#the-core-distinction-logic-vs-execution-harness)
+  - [How They Work Together: Distributed Execution Lifecycle](#how-they-work-together-distributed-execution-lifecycle)
+  - [Architecture & Execution Flow Diagram](#architecture--execution-flow-diagram)
+  - [Comparison Matrix: DoFn vs. beam.ParDo](#comparison-matrix-dofn-vs-beam-pardo)
+  - [Common Anti-Patterns & Pitfalls](#common-anti-patterns--pitfalls)
 - [Environment Setup & Activating the Kernel](#environment-setup--activating-the-kernel)
 - [Quick Start: Running the Pipeline](#quick-start-running-the-pipeline)
   - [1. Run Locally with DirectRunner](#1-run-locally-with-directrunner)
@@ -96,7 +102,7 @@ In `p | "FilterDate" >> beam.ParDo(...)`, the string `"FilterDate"` is a critica
 4. **Uniqueness Constraint**: Every transform name **must be unique** within its scope. Reusing a name raises `ValueError: A transform with name ... already exists in this pipeline`.
 5. **Streaming Checkpoints**: For streaming jobs, Dataflow keys window buffers and timers to these names. Preserving names ensures state continuity during rolling pipeline updates (`--update`).
 
-![Retail Sales Pipeline DAG](../artifacts/01_sales_pipeline_dag.png)
+<!-- ![Retail Sales Pipeline DAG](../artifacts/01_sales_pipeline_dag.png) -->
 
 ```mermaid
 flowchart LR
@@ -137,6 +143,177 @@ flowchart LR
     PC_RAW --> T_PARSE
     PC_FILTERED --> T_MAP
     PC_AGG --> T_FORMAT
+```
+
+---
+
+## Core Concepts Deep Dive: DoFn vs. beam.ParDo
+
+In Apache Beam, `DoFn` and `beam.ParDo` represent the two halves of parallel data processing. Confusing these two concepts is the single most common pitfall for developers new to distributed pipelines.
+
+### The Core Distinction: Logic vs. Execution Harness
+
+| Concept | What It Is | Primary Role |
+| :--- | :--- | :--- |
+| **`beam.DoFn`** | A Python **class** (subclass of `beam.DoFn`) | **The Business Logic ("What")**: Defines how to transform an *individual element*. It contains your custom algorithms, data validation, and parsing routines. |
+| **`beam.ParDo`** | A Beam **PTransform** (subclass of `beam.PTransform`) | **The Execution Harness ("How")**: Defines how to execute that logic in *parallel across a cluster*. It handles bundle chunking, thread scheduling, worker dispatch, and collection aggregation. |
+
+> [!TIP]
+> **The Factory Analogy**:
+> * Think of **`beam.ParDo`** as the **automated assembly line conveyor belt** with robotic arms spanning across factory workstations.
+> * Think of **`DoFn`** as the **toolhead and software recipe** loaded into each robotic arm.
+> * A recipe cannot assemble parts on its own without the conveyor line (`pcoll | MyDoFn()` raises a `TypeError`).
+> * A conveyor line without a toolhead has nothing to execute.
+> * When combined (`pcoll | beam.ParDo(MyDoFn())`), raw components are fed onto the conveyor, distributed across robotic stations, processed concurrently, and aggregated into finished products.
+
+---
+
+### How They Work Together: Distributed Execution Lifecycle
+
+When you submit a pipeline to Google Cloud Dataflow, `beam.ParDo` and your `DoFn` collaborate through a strict 6-phase distributed lifecycle:
+
+1. **Pipeline Construction & Graph Serialization (Driver Machine)**:
+   - On your local development machine, you define `pcoll | "Parse" >> beam.ParDo(ParseSalesRecordFn())`.
+   - Apache Beam uses `dill`/`pickle` to serialize the `DoFn` instance and transmits its bytecode to the Dataflow service.
+2. **Worker Instantiation & `setup()`**:
+   - Dataflow provisions worker VMs and launches worker processes/threads.
+   - Each worker deserializes `ParseSalesRecordFn` and calls **`setup()`** once per worker instance. This is where you initialize heavy, non-element-specific dependencies (such as compiling regex patterns or initializing connection pools).
+3. **Bundle Slicing & `start_bundle()`**:
+   - A `PCollection` containing millions of records is divided by `beam.ParDo` into chunks called **bundles** (e.g., 5,000 records).
+   - Before feeding elements of a bundle to the worker, `beam.ParDo` invokes **`start_bundle()`**, allowing initialization of bundle-level buffers or accumulators.
+4. **Per-Element Parallel Execution & `process()`**:
+   - `beam.ParDo` loops through the bundle elements, calling **`process(self, element, *args, **kwargs)`** for each record.
+   - Inside `process()`, you use `yield` (a Python generator). This gives you total cardinality flexibility:
+     - **0 outputs (`yield` nothing)**: Drops/filters records (e.g., `FilterByDateFn`).
+     - **1 output (`yield record`)**: 1-to-1 transformation or parsing (e.g., `ParseSalesRecordFn`).
+     - **N outputs (multiple `yield` calls)**: 1-to-N splitting, flattening, or tokenization.
+5. **Bundle Finalization & `finish_bundle()`**:
+   - Once all records in the bundle are processed, `beam.ParDo` invokes **`finish_bundle()`**. If you buffered records in memory, you flush them here before the worker commits the bundle checkpoint to Dataflow.
+6. **Worker Teardown & `teardown()`**:
+   - When the pipeline completes or worker VMs autoscale down, `beam.ParDo` invokes **`teardown()`** to cleanly close network sockets and resources.
+
+---
+
+### Architecture & Execution Flow Diagram
+
+The diagram below illustrates how `beam.ParDo` acts as the distributed execution harness, orchestrating worker VMs and calling the `DoFn` lifecycle across parallel bundles:
+
+![ParDo and DoFn Architecture](../artifacts/01_pardo_dofn_architecture.png)
+
+<details>
+<summary><b>View Mermaid Source Code</b></summary>
+
+```mermaid
+flowchart LR
+    classDef pcoll fill:#e8f0fe,stroke:#4285f4,stroke-width:2px,color:#1a73e8,font-weight:bold;
+    classDef ptrans fill:#fef7e0,stroke:#f9ab00,stroke-width:2px,color:#b06000,font-weight:bold;
+    classDef lifecycle fill:#ffffff,stroke:#1a73e8,stroke-width:1.5px,color:#1a73e8;
+    classDef method fill:#e6f4ea,stroke:#34a853,stroke-width:2px,color:#137333,font-weight:bold;
+
+    IN_PCOLL[("Input PCollection<br/><b>sales_data.csv</b>")]:::pcoll
+
+    subgraph PARDO["beam.ParDo Transform Harness (Distributed Parallel Orchestration)"]
+        direction TB
+
+        subgraph W1["Worker VM 1 (Worker Thread)"]
+            direction TB
+            D1["<b>ParseSalesRecordFn</b><br/>(DoFn Instance)"]:::lifecycle
+            M1["1. setup()<br/>2. start_bundle()<br/>3. <b>process(elem)</b> ➔ yield<br/>4. finish_bundle()"]:::method
+            D1 --- M1
+        end
+
+        subgraph W2["Worker VM 2 (Worker Thread)"]
+            direction TB
+            D2["<b>ParseSalesRecordFn</b><br/>(DoFn Instance)"]:::lifecycle
+            M2["1. setup()<br/>2. start_bundle()<br/>3. <b>process(elem)</b> ➔ yield<br/>4. finish_bundle()"]:::method
+            D2 --- M2
+        end
+
+        W1 ~~~ W2
+    end
+
+    OUT_PCOLL[("Output PCollection<br/><b>Parsed Dicts</b>")]:::pcoll
+
+    IN_PCOLL -->|"Bundle A"| W1
+    IN_PCOLL -->|"Bundle B"| W2
+    W1 -->|"Collects Yielded Dicts"| OUT_PCOLL
+    W2 -->|"Collects Yielded Dicts"| OUT_PCOLL
+```
+
+</details>
+
+---
+
+### Comparison Matrix: DoFn vs. beam.ParDo
+
+| Dimension | `beam.DoFn` | `beam.ParDo` |
+| :--- | :--- | :--- |
+| **Object Type** | Subclass of `beam.DoFn` (Python class) | Subclass of `beam.PTransform` (Beam transform) |
+| **Input** | A single element (`element`) | A distributed collection (`PCollection[A]`) |
+| **Output** | An iterable of zero or more elements (`yield`) | A new distributed collection (`PCollection[B]`) |
+| **Invocation Syntax** | Passed as an argument: `beam.ParDo(MyDoFn())` | Applied with pipe operator: `pcoll \| "Name" >> beam.ParDo(...)` |
+| **Where Code Runs** | On worker VMs inside worker threads | Orchestrated by the runner (Dataflow / DirectRunner) |
+| **Lifecycle Hooks** | `setup()`, `start_bundle()`, `process()`, `finish_bundle()`, `teardown()` | Controls when lifecycle hooks are invoked on workers |
+| **State & Timers** | Declares state specs (`@StateId`) and timers (`@TimerId`) | Manages state persistence and timer delivery via Streaming Engine |
+
+---
+
+### Common Anti-Patterns & Pitfalls
+
+#### ❌ Anti-Pattern 1: Applying DoFn directly to a PCollection
+```python
+# WRONG: Raises TypeError (DoFn is not a PTransform!)
+parsed = lines | ParseSalesRecordFn()
+
+# CORRECT: Wrap DoFn inside beam.ParDo
+parsed = lines | "ParseRecords" >> beam.ParDo(ParseSalesRecordFn())
+```
+
+#### ❌ Anti-Pattern 2: Using `return` instead of `yield` in `process()`
+```python
+# WRONG: Returning a string treats it as an iterable of characters!
+class ParseFn(beam.DoFn):
+    def process(self, line):
+        return line.strip()  # Emits each character ("a", "b", "c"...) as separate elements!
+
+# CORRECT: Use yield to emit complete objects or tuples
+class ParseFn(beam.DoFn):
+    def process(self, line):
+        yield line.strip()   # Emits the complete stripped string
+```
+
+#### ❌ Anti-Pattern 3: Opening network connections inside `process()`
+```python
+# WRONG: Opens a new database/HTTP connection for EVERY single record!
+# 1,000,000 records = 1,000,000 connection attempts -> socket exhaustion & crashes!
+class QueryCatalogFn(beam.DoFn):
+    def process(self, element):
+        client = db.connect()  # SEVERE PERFORMANCE BOTTLENECK
+        yield client.lookup(element["product_id"])
+
+# CORRECT: Open client ONCE per worker in setup(), reuse across elements
+class QueryCatalogFn(beam.DoFn):
+    def setup(self):
+        self.client = db.connect()  # Called once per worker process!
+
+    def process(self, element):
+        yield self.client.lookup(element["product_id"])
+
+    def teardown(self):
+        self.client.close()
+```
+
+#### ❌ Anti-Pattern 4: Shared mutable class state across workers
+```python
+# WRONG: Python class variables are NOT shared across distributed worker VMs!
+class BadCounterFn(beam.DoFn):
+    total_count = 0  # Each worker VM has its own isolated memory space
+
+    def process(self, element):
+        BadCounterFn.total_count += 1  # Total count will be completely inaccurate!
+        yield element
+
+# CORRECT: Use Beam Combiners (CombinePerKey, beam.combiners.Count) or Chapter 04 Stateful DoFns!
 ```
 
 ---
