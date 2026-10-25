@@ -1,0 +1,63 @@
+# ==============================================================================
+# Google Cloud Build CI/CD Pipeline — Chapter 07
+# 1. Automated unit testing with pytest
+# 2. Build & push Flex Template container to Artifact Registry
+# 3. Generate Flex Template JSON specification in Cloud Storage
+# ==============================================================================
+steps:
+  # Step 1: Automated Unit Testing
+  - name: "python:3.12-slim"
+    id: "run-unit-tests"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        pip install --no-cache-dir apache-beam[gcp]==2.56.0 pytest
+        pytest 07_testing_templates_and_cicd/tests/
+
+  # Step 2: Build Flex Template Container Image
+  - name: "gcr.io/cloud-builders/docker"
+    id: "build-template-image"
+    dir: "07_testing_templates_and_cicd"
+    args:
+      - "build"
+      - "-t"
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/dataflow-secure-orders:${SHORT_SHA}"
+      - "-t"
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/dataflow-secure-orders:latest"
+      - "-f"
+      - "template/Dockerfile"
+      - "."
+
+  # Step 3: Push Container Image to Artifact Registry
+  - name: "gcr.io/cloud-builders/docker"
+    id: "push-to-artifact-registry"
+    args:
+      - "push"
+      - "--all-tags"
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/dataflow-secure-orders"
+
+  # Step 4: Build Dataflow Flex Template Specification in Cloud Storage
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+    id: "build-dataflow-flex-template"
+    entrypoint: "gcloud"
+    args:
+      - "dataflow"
+      - "flex-template"
+      - "build"
+      - "gs://${_BUCKET}/templates/secure_orders_template.json"
+      - "--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/dataflow-secure-orders:latest"
+      - "--sdk-language=PYTHON"
+      - "--metadata-file=07_testing_templates_and_cicd/template/metadata.json"
+
+substitutions:
+  _REGION: "europe-west1"
+  _REPO_NAME: "dataflow-templates"
+  _BUCKET: "${PROJECT_ID}-dataflow-storage"
+
+images:
+  - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/dataflow-secure-orders:latest"
+  - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/dataflow-secure-orders:${SHORT_SHA}"
+
+options:
+  logging: CLOUD_LOGGING_ONLY

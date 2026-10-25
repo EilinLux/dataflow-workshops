@@ -1,0 +1,39 @@
+{
+  "name": "Secure Streaming Orders Flex Template",
+  "description": "Production streaming pipeline with Private IPs, CMEK encryption, and BigQuery Storage Write API.",
+  "parameters": [
+    {
+      "name": "input_subscription",
+      "label": "Pub/Sub Input Subscription",
+      "helpText": "The Pub/Sub subscription to read orders from (projects/<PROJECT>/subscriptions/<SUB>).",
+      "isOptional": false,
+      "regexes": [
+        "^projects\\/[^\\n\\r\\t]+\\/subscriptions\\/[^\\n\\r\\t]+$"
+      ]
+    },
+    {
+      "name": "output_table",
+      "label": "BigQuery Output Table",
+      "helpText": "The BigQuery table to write curated orders to (<PROJECT>:<DATASET>.<TABLE>).",
+      "isOptional": false,
+      "regexes": [
+        "^[^\\n\\r\\t]+:[^\\n\\r\\t]+\\.[^\\n\\r\\t]+$"
+      ]
+    },
+    {
+      "name": "dataflow_kms_key",
+      "label": "Customer Managed Encryption Key (CMEK)",
+      "helpText": "Cloud KMS key resource ID for CMEK encryption.",
+      "isOptional": true,
+      "regexes": [
+        "^projects\\/[^\\n\\r\\t]+\\/locations\\/[^\\n\\r\\t]+\\/keyRings\\/[^\\n\\r\\t]+\\/cryptoKeys\\/[^\\n\\r\\t]+$"
+      ]
+    },
+    {
+      "name": "subnetwork",
+      "label": "VPC Subnetwork",
+      "helpText": "VPC Subnetwork for private worker IP routing (https://www.googleapis.com/compute/v1/projects/.../subnetworks/...).",
+      "isOptional": true
+    }
+  ]
+}

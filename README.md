@@ -282,7 +282,24 @@ dataflow-workshops/
 │       ├── 02_deploy_v1_and_update_v2.sh             # Zero-downtime rolling update submission
 │       └── 03_disaster_recovery_seek_replay.sh       # Disaster recovery via Pub/Sub subscription seek
 │
-├── 07_testing_templates_and_cicd/                    # Chapter 07: TestPipeline, Flex Templates & CI/CD (Upcoming)
+├── 07_testing_templates_and_cicd/                    # Chapter 07: Unit Testing, Docker Flex Templates, CI/CD & Security
+│   ├── README.md                                     # Chapter documentation & security guide
+│   ├── 07_testing_templates_and_cicd.ipynb           # Interactive notebook with TestStream, Flex Templates & CMEK
+│   ├── tests/
+│   │   ├── test_transforms.py                        # Deterministic unit tests (TestPipeline & assert_that)
+│   │   └── test_streaming_teststream.py              # Streaming unit tests (TestStream watermark testing)
+│   ├── template/
+│   │   ├── Dockerfile                                # Flex Template container definition
+│   │   ├── metadata.json                             # Template parameters specification
+│   │   └── requirements.txt                          # Container dependencies
+│   ├── cicd/
+│   │   └── cloudbuild.yaml                           # Automated Cloud Build CI/CD pipeline
+│   ├── pipelines/
+│   │   └── secure_orders_pipeline.py                 # Pipeline with CMEK, Private IPs, and VPC controls
+│   └── scripts/
+│       ├── 01_run_unit_tests.sh                      # Local unit test runner (pytest)
+│       ├── 02_build_flex_template.sh                 # Docker build & Artifact Registry push
+│       └── 03_run_secure_flex_template.sh            # Secure execution with Private IPs & CMEK
 │
 └── artifacts/                                        # Pre-rendered high-res SVG & PNG pipeline architecture diagrams
     ├── 01_numbers_pipeline_dag.png
@@ -291,7 +308,8 @@ dataflow-workshops/
     ├── 03_windowing_and_streaming_dag.png
     ├── 04_stateful_and_fanout_dag.png
     ├── 05_streaming_engine_and_monitoring_dag.png
-    └── 06_resilient_ops_and_updates_dag.png
+    ├── 06_resilient_ops_and_updates_dag.png
+    └── 07_testing_templates_and_cicd_dag.png
 ```
 
 ---
