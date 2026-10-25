@@ -22,52 +22,38 @@ The pipeline executes a high-volume benchmark workload, tracks step-level execut
 <summary><b>View Mermaid Source Code</b></summary>
 
 ```mermaid
-flowchart TD
+flowchart LR
     classDef pcoll fill:#e8f0fe,stroke:#4285f4,stroke-width:2px,color:#1a73e8,font-weight:bold;
     classDef ptrans fill:#fef7e0,stroke:#f9ab00,stroke-width:2px,color:#b06000,font-weight:bold;
     classDef sink fill:#e6f4ea,stroke:#34a853,stroke-width:2px,color:#137333,font-weight:bold;
     classDef engine fill:#f3e8fd,stroke:#9334e6,stroke-width:2px,color:#6b21a8,font-weight:bold;
     classDef alert fill:#fee2e2,stroke:#ef4444,stroke-width:2px,color:#991b1b,font-weight:bold;
 
-    subgraph Pipeline["1. Benchmarked Pipeline Topology"]
-        INPUT_DATA[("[( benchmark_telemetry.json )]<br/>1,000 High-Volume Events")]:::pcoll
-        T_READ["PTransform: beam.io.ReadFromText<br/>Name: 'ReadBenchmarkData'"]:::ptrans
-        T_BENCH["PTransform: beam.ParDo(ParseAndBenchmarkFn)<br/>Name: 'ParseAndBenchmark'<br/>Records: Metrics.distribution(step_latency_ms)"]:::ptrans
-        T_GBK["PTransform: beam.GroupByKey<br/>Name: 'GroupByCategory'"]:::ptrans
-        T_AGG["PTransform: beam.ParDo(AggregateCategoryMetricsFn)<br/>Name: 'AggregateKPIs'"]:::ptrans
-        BQ_SINK[("[( BigQuery Table )]<br/>benchmark_category_metrics")]:::sink
+    subgraph Pipeline["1. Benchmarked Pipeline"]
+        INPUT[("benchmark_telemetry.json")]:::pcoll
+        BENCH["'ParseAndBenchmark'<br/><i>Metrics.distribution</i>"]:::ptrans
+        GBK["'GroupByCategory'<br/><i>GroupByKey</i>"]:::ptrans
+        BQ[("BigQuery:<br/>category_metrics")]:::sink
+        INPUT --> BENCH --> GBK --> BQ
     end
 
-    subgraph EngineArch["2. Dataflow Streaming Engine / Shuffle"]
-        WORKER_VM["Stateless Worker VMs (Compute Only)<br/>• n2-standard-4 (min=2, max=8)<br/>• Fast Horizontal Autoscaling in Seconds"]:::engine
-        STREAMING_ENGINE["Google-Managed Streaming Engine<br/>• Offloads State & Shuffle from Worker Disks<br/>• Eliminates Worker PD Resizing Bottlenecks"]:::engine
+    subgraph EngineArch["2. Dataflow Streaming Engine"]
+        WORKERS["Stateless Worker VMs<br/>Compute-only (n2-std-4)"]:::engine
+        SE["Streaming Engine Tier<br/>Offloaded State & Shuffle"]:::engine
+        WORKERS <--> SE
     end
 
-    subgraph MonitoringFlow["3. Production Observability & SLA Alerting"]
-        METRIC_LAG["Metric: dataflow/job/system_lag<br/>Indicates: Throughput Deficit vs Input Rate"]:::alert
-        METRIC_FRESH["Metric: dataflow/job/data_freshness<br/>Indicates: Output Staleness vs Real-Time"]:::alert
-        ALERT_LAG["Cloud Monitoring Alert Policy<br/>Condition: System Lag &gt; 120s for 5m"]:::alert
-        ALERT_FRESH["Cloud Monitoring Alert Policy<br/>Condition: Data Freshness &gt; 300s for 5m"]:::alert
-        NOTIF_CHAN["SLA Notification Channels<br/>PagerDuty / Slack / SRE Escalation"]:::alert
+    subgraph Monitoring["3. SLA Observability & Alerting"]
+        LAG["System Lag Metric (>120s)"]:::alert
+        FRESH["Data Freshness Metric (>300s)"]:::alert
+        PAGER["PagerDuty / Slack Alerts"]:::alert
+        LAG --> PAGER
+        FRESH --> PAGER
     end
 
-    INPUT_DATA --> T_READ
-    T_READ --> T_BENCH
-    T_BENCH --> T_GBK
-    T_GBK --> T_AGG
-    T_AGG --> BQ_SINK
-
-    T_GBK -. "Offloads Shuffle & State" .-> STREAMING_ENGINE
-    STREAMING_ENGINE <--> WORKER_VM
-
-    T_BENCH -. "Emits Metrics" .-> METRIC_LAG
-    T_AGG -. "Emits Metrics" .-> METRIC_FRESH
-
-    METRIC_LAG --> ALERT_LAG
-    METRIC_FRESH --> ALERT_FRESH
-
-    ALERT_LAG --> NOTIF_CHAN
-    ALERT_FRESH --> NOTIF_CHAN
+    GBK -. "Offloads State" .-> SE
+    BENCH -. "Emits Telemetry" .-> LAG
+    GBK -. "Emits Telemetry" .-> FRESH
 ```
 </details>
 

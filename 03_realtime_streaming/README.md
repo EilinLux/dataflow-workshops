@@ -22,84 +22,52 @@ The pipeline ingests unbounded e-commerce telemetry, isolates poison records int
 <summary><b>View Mermaid Source Code</b></summary>
 
 ```mermaid
-flowchart TD
+flowchart LR
     classDef pcoll fill:#e8f0fe,stroke:#4285f4,stroke-width:2px,color:#1a73e8,font-weight:bold;
     classDef ptrans fill:#fef7e0,stroke:#f9ab00,stroke-width:2px,color:#b06000,font-weight:bold;
     classDef sink fill:#e6f4ea,stroke:#34a853,stroke-width:2px,color:#137333,font-weight:bold;
     classDef dlq fill:#fce8e6,stroke:#ea4335,stroke-width:2px,color:#c5221f,font-weight:bold;
-    classDef window fill:#f3e8fd,stroke:#9334e6,stroke-width:2px,color:#6b21a8,font-weight:bold;
+    classDef win fill:#f3e8fd,stroke:#9334e6,stroke-width:2px,color:#6b21a8,font-weight:bold;
 
-    subgraph Ingestion["1. Unbounded Telemetry Ingestion"]
-        PUBSUB_TOPIC[("[( Google Cloud Pub/Sub )]<br/>telemetry-events-topic<br/>Ordering Key: user_id")]:::pcoll
-        T_READ["PTransform: beam.io.ReadFromPubSub<br/>Name: 'ReadFromPubSub'"]:::ptrans
-        PC_RAW[("[( PCollection&lt;PubsubMessage&gt; )]<br/>Raw Streaming Messages")]:::pcoll
+    subgraph StreamIngest["1. Ingestion & Validation"]
+        PUBSUB[("Pub/Sub Topic<br/>telemetry-events")]:::pcoll
+        READ["'ReadFromPubSub'"]:::ptrans
+        PARSE["'ParseAndValidate'<br/><i>TimestampedValue</i>"]:::ptrans
+        VALID[("Valid Stream")]:::pcoll
+        DLQ_RECS[("DLQ Records")]:::dlq
+        DLQ_SINK[("Dead-Letter Sink")]:::dlq
+        PUBSUB --> READ --> PARSE
+        PARSE --> VALID
+        PARSE -- "Malformed" --> DLQ_RECS --> DLQ_SINK
     end
 
-    subgraph Validation["2. Validation & Dead-Letter Isolation"]
-        T_PARSE["PTransform: beam.ParDo(ParseAndValidateEventFn)<br/>Name: 'ParseAndValidate'<br/>Assigns TimestampedValue(event, ts)"]:::ptrans
-        PC_VALID[("[( PCollection&lt;dict&gt; (Valid Stream) )]<br/>Clean Ingested Events")]:::pcoll
-        PC_DLQ[("[( PCollection&lt;dict&gt; ('dead_letter') )]<br/>Poison Payloads")]:::dlq
-        T_WRITE_DLQ["PTransform: beam.io.WriteToBigQuery / WriteToText<br/>Name: 'WriteDLQ'"]:::ptrans
-        DLQ_SINK[("[( Dead-Letter Table / Sink )]<br/>dead_letter_queue")]:::dlq
+    subgraph WindowingBranches["2. Temporal Windowing Strategies & Sinks"]
+        direction TB
+        subgraph BranchA["Branch A: Tumbling Windows (60s)"]
+            WIN_TUMB["FixedWindows(60s)<br/><i>Trigger + Allowed Lateness</i>"]:::win
+            COMB_TUMB["CombinePerKey<br/>'CombineTumbling'"]:::ptrans
+            BQ_TUMB[("BigQuery: kpi_tumbling")]:::sink
+            WIN_TUMB --> COMB_TUMB --> BQ_TUMB
+        end
+
+        subgraph BranchB["Branch B: Sliding Windows (60s, period=20s)"]
+            WIN_SLIDE["SlidingWindows(60s, 20s)<br/><i>Rolling Trend Rate</i>"]:::win
+            COMB_SLIDE["CombinePerKey<br/>'CombineSliding'"]:::ptrans
+            BQ_SLIDE[("BigQuery: kpi_sliding")]:::sink
+            WIN_SLIDE --> COMB_SLIDE --> BQ_SLIDE
+        end
+
+        subgraph BranchC["Branch C: Session Windows (30s Gap)"]
+            WIN_SESS["Sessions(30s)<br/><i>Activity Bursts</i>"]:::win
+            COMB_SESS["GroupByKey + Aggregate<br/>'AggregateSession'"]:::ptrans
+            BQ_SESS[("BigQuery: kpi_session")]:::sink
+            WIN_SESS --> COMB_SESS --> BQ_SESS
+        end
     end
 
-    subgraph BranchA["3A. Fixed (Tumbling) Windows & Triggers"]
-        T_FIXED_WIN["PTransform: beam.WindowInto(FixedWindows(60s))<br/>Name: 'ApplyFixedWindow'<br/>Trigger: AfterWatermark(early=AfterCount(3), late=AfterCount(1))<br/>Allowed Lateness: 120s | Mode: ACCUMULATING"]:::window
-        T_COMBINE_TUMB["PTransform: CombinePerKey(CountAndSum)<br/>Name: 'CombineTumblingPerUser'"]:::ptrans
-        T_FMT_TUMB["PTransform: beam.ParDo(FormatTumblingWindowFn)<br/>Name: 'FormatTumblingOutput'"]:::ptrans
-        PC_TUMB_RES[("[( PCollection&lt;dict&gt; )]<br/>Fixed Window Metrics")]:::pcoll
-        T_WRITE_TUMB["PTransform: beam.io.WriteToBigQuery<br/>Name: 'WriteTumblingBQ'"]:::ptrans
-        BQ_TUMB[("[( BigQuery Table )]<br/>kpi_tumbling_metrics")]:::sink
-    end
-
-    subgraph BranchB["3B. Sliding (Hopping) Windows"]
-        T_SLIDE_WIN["PTransform: beam.WindowInto(SlidingWindows(60s, 20s))<br/>Name: 'ApplySlidingWindow'"]:::window
-        T_COMBINE_SLIDE["PTransform: CombinePerKey(CountAndSum)<br/>Name: 'CombineSlidingPerUser'"]:::ptrans
-        T_FMT_SLIDE["PTransform: beam.ParDo(FormatSlidingWindowFn)<br/>Name: 'FormatSlidingOutput'"]:::ptrans
-        PC_SLIDE_RES[("[( PCollection&lt;dict&gt; )]<br/>Rolling Velocity Metrics")]:::pcoll
-        T_WRITE_SLIDE["PTransform: beam.io.WriteToBigQuery<br/>Name: 'WriteSlidingBQ'"]:::ptrans
-        BQ_SLIDE[("[( BigQuery Table )]<br/>kpi_sliding_metrics")]:::sink
-    end
-
-    subgraph BranchC["3C. Session Windows (Dynamic Gap)"]
-        T_SESS_WIN["PTransform: beam.WindowInto(Sessions(30s))<br/>Name: 'ApplySessionWindow'"]:::window
-        T_GROUP_SESS["PTransform: beam.GroupByKey<br/>Name: 'GroupSessionEvents'"]:::ptrans
-        T_AGG_SESS["PTransform: beam.ParDo(AggregateSessionFn)<br/>Name: 'AggregateSessionKPIs'"]:::ptrans
-        PC_SESS_RES[("[( PCollection&lt;dict&gt; )]<br/>User Session Metrics")]:::pcoll
-        T_WRITE_SESS["PTransform: beam.io.WriteToBigQuery<br/>Name: 'WriteSessionBQ'"]:::ptrans
-        BQ_SESS[("[( BigQuery Table )]<br/>kpi_session_metrics")]:::sink
-    end
-
-    PUBSUB_TOPIC --> T_READ
-    T_READ --> PC_RAW
-    PC_RAW --> T_PARSE
-
-    T_PARSE -- "TaggedOutput('dead_letter')" --> PC_DLQ
-    PC_DLQ --> T_WRITE_DLQ
-    T_WRITE_DLQ --> DLQ_SINK
-
-    T_PARSE -- "Main Valid Output" --> PC_VALID
-
-    PC_VALID --> T_FIXED_WIN
-    T_FIXED_WIN --> T_COMBINE_TUMB
-    T_COMBINE_TUMB --> T_FMT_TUMB
-    T_FMT_TUMB --> PC_TUMB_RES
-    PC_TUMB_RES --> T_WRITE_TUMB
-    T_WRITE_TUMB --> BQ_TUMB
-
-    PC_VALID --> T_SLIDE_WIN
-    T_SLIDE_WIN --> T_COMBINE_SLIDE
-    T_COMBINE_SLIDE --> T_FMT_SLIDE
-    T_FMT_SLIDE --> PC_SLIDE_RES
-    PC_SLIDE_RES --> T_WRITE_SLIDE
-    T_WRITE_SLIDE --> BQ_SLIDE
-
-    PC_VALID --> T_SESS_WIN
-    T_SESS_WIN --> T_GROUP_SESS
-    T_GROUP_SESS --> T_AGG_SESS
-    T_AGG_SESS --> PC_SESS_RES
-    PC_SESS_RES --> T_WRITE_SESS
-    T_WRITE_SESS --> BQ_SESS
+    VALID --> WIN_TUMB
+    VALID --> WIN_SLIDE
+    VALID --> WIN_SESS
 ```
 </details>
 

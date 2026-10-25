@@ -15,34 +15,31 @@ Modern data engineering demands processing both historical bounded data (daily b
 **Google Cloud Dataflow** solves this challenge. It is Google Cloud's fully managed, serverless, horizontally auto-scaling execution service for running unified stream and batch pipelines written in **Apache Beam**.
 
 ```mermaid
-flowchart TD
-    subgraph Beam["Unified Apache Beam Programming Model (Write Once)"]
+flowchart LR
+    subgraph Beam["1. Apache Beam SDK (Write Once)"]
         direction TB
-        CODE["Pipeline Definition in Python / Java / Go / YAML\n(PCollections + PTransforms)"]
+        CODE["Pipeline Definition<br/><i>PCollections & PTransforms</i>"]
     end
 
-    subgraph Runners["Execution Engines (Run Anywhere)"]
-        direction LR
-        DIR["DirectRunner\n(Local Dev & Unit Tests)"]
-        DF["DataflowRunner\n(Google Cloud Managed)"]
-        SPARK["Spark / Flink Runners\n(On-Prem / Multi-Cloud)"]
+    subgraph Runners["2. Execution Engines (Run Anywhere)"]
+        direction TB
+        DIR["DirectRunner<br/><i>Local Dev & Tests</i>"]
+        DF["DataflowRunner<br/><i>GCP Managed</i>"]
+        SPARK["Spark / Flink<br/><i>Multi-Cloud</i>"]
     end
 
-    subgraph DataflowService["Google Cloud Dataflow (Zero-Ops Distributed Runtime)"]
+    subgraph Dataflow["3. Cloud Dataflow Runtime (Zero-Ops)"]
         direction TB
-        OPT["Graph Optimization\n(Fusion & Flatten Optimization)"]
-        AUTOSCALE["Dynamic Horizontal & Vertical Autoscaling\n(Dataflow Prime)"]
-        SHUFFLE["Managed Dataflow Shuffle & Streaming Engine\n(Offloaded State & Shuffle Tier)"]
-        WORKERS["Ephemeral Worker VMs\n(Runner v2 Container Architecture)"]
-        OPT --> AUTOSCALE
-        AUTOSCALE --> SHUFFLE
-        SHUFFLE --> WORKERS
+        OPTIMIZE["Graph Optimization<br/><i>Fusion & Flattening</i>"]
+        AUTOSCALE["Dynamic Autoscaling<br/><i>Dataflow Prime</i>"]
+        SHUFFLE["Streaming Engine & Shuffle<br/><i>Offloaded Backend</i>"]
+        OPTIMIZE --> AUTOSCALE --> SHUFFLE
     end
 
     CODE --> DIR
     CODE --> DF
     CODE --> SPARK
-    DF --> DataflowService
+    DF --> OPTIMIZE
 ```
 
 With Dataflow, you define your pipeline logic using the open-source **Apache Beam SDK** and deploy it to Google Cloud. Dataflow automatically provisions compute resources, balances workloads dynamically across worker VMs, integrates natively with Google Cloud managed storage services, and tears down infrastructure when batch jobs finish—or scales horizontally to absorb unpredictable streaming traffic spikes with millisecond latency.
@@ -144,16 +141,30 @@ flowchart LR
 This workshop is structured as a hands-on, progressive curriculum taking you from zero to production Dataflow expertise:
 
 ```mermaid
-flowchart TD
-    CH1["01. Beam Fundamentals\n(PCollection, PTransform, DirectRunner & DataflowRunner)"]
-    CH2["02. Advanced Transforms & BigQuery\n(DoFn Lifecycle, Side Inputs AsDict & Tagged DLQ)"]
-    CH3["03. Real-Time Streaming & Windowing\n(Pub/Sub, Fixed/Sliding/Session Windows & Late Triggers)"]
-    CH4["04. Stateful Processing & Hot Key Fanout\n(Stateful DoFn, Timers & withHotKeyFanout)"]
-    CH5["05. Streaming Engine, Autoscaling & Observability\n(System Lag, Data Freshness & Dataflow Shuffle)"]
-    CH6["06. Resilient Operations, Pub/Sub Replay & Updates\n(Dead-Letter Topics, Seek Replay & Zero-Downtime --update)"]
-    CH7["07. Testing, Flex Templates, CI/CD & Security\n(TestStream/PAssert, Docker Flex Templates, Cloud Build & CMEK)"]
+flowchart LR
+    subgraph P1["Part 1: Core Fundamentals"]
+        direction TB
+        CH1["01. Beam Fundamentals<br/><i>PCollection, PTransform, Runners</i>"]
+        CH2["02. Transforms & BigQuery<br/><i>DoFn Lifecycle, Side Inputs, DLQ</i>"]
+        CH1 --> CH2
+    end
 
-    CH1 --> CH2 --> CH3 --> CH4 --> CH5 --> CH6 --> CH7
+    subgraph P2["Part 2: Real-Time Stream Engine"]
+        direction TB
+        CH3["03. Streaming & Windowing<br/><i>Pub/Sub, Fixed/Sliding/Sessions</i>"]
+        CH4["04. Stateful & Hot Keys<br/><i>@StateId, @TimerId, Fanout</i>"]
+        CH5["05. Streaming Engine & Ops<br/><i>Lag, Freshness, Autoscaling</i>"]
+        CH3 --> CH4 --> CH5
+    end
+
+    subgraph P3["Part 3: Enterprise Operations"]
+        direction TB
+        CH6["06. Resilience & Updates<br/><i>Rolling Updates, Replay Seek</i>"]
+        CH7["07. Testing, CI/CD & CMEK<br/><i>TestStream, Flex Template</i>"]
+        CH6 --> CH7
+    end
+
+    P1 --> P2 --> P3
 ```
 
 ### Chapter 01 — Apache Beam & Dataflow Fundamentals (`01_beam_fundamentals/`)

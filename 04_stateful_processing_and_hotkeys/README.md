@@ -26,69 +26,35 @@ The pipeline ingests a highly skewed clickstream dataset where a single celebrit
 <summary><b>View Mermaid Source Code</b></summary>
 
 ```mermaid
-flowchart TD
+flowchart LR
     classDef pcoll fill:#e8f0fe,stroke:#4285f4,stroke-width:2px,color:#1a73e8,font-weight:bold;
     classDef ptrans fill:#fef7e0,stroke:#f9ab00,stroke-width:2px,color:#b06000,font-weight:bold;
     classDef sink fill:#e6f4ea,stroke:#34a853,stroke-width:2px,color:#137333,font-weight:bold;
     classDef state fill:#f3e8fd,stroke:#9334e6,stroke-width:2px,color:#6b21a8,font-weight:bold;
     classDef hotkey fill:#fee2e2,stroke:#ef4444,stroke-width:2px,color:#991b1b,font-weight:bold;
 
-    subgraph Ingestion["1. Skewed Stream Ingestion"]
-        INPUT_DATA[("[( skewed_clickstream.json )]<br/>Extreme Key Skew (Celebrity: 100x events)")]:::hotkey
-        T_READ["PTransform: beam.io.ReadFromText<br/>Name: 'ReadClickstream'"]:::ptrans
-        T_PARSE["PTransform: beam.ParDo(ParseAndTimestampFn)<br/>Name: 'ParseAndTimestamp'"]:::ptrans
-        PC_EVENTS[("[( PCollection&lt;KV&lt;user_id, event&gt;&gt; )]")]:::pcoll
+    subgraph Ingest["1. Skewed Stream"]
+        SKEW_DATA[("skewed_clickstream.json<br/>(100x Key Skew)")]:::hotkey
+        PARSE["'ParseAndTimestamp'<br/><i>KV(user_id, event)</i>"]:::ptrans
+        SKEW_DATA --> PARSE
     end
 
-    subgraph StatefulEngine["2. Stateful Processing & Timer Machine"]
-        T_STATEFUL["PTransform: beam.ParDo(StatefulSessionizerFn)<br/>Name: 'StatefulSessionTracker'"]:::state
-        subgraph InternalState["Per-Key State & Timer Store"]
-            STATE_SCALAR["ReadModifyWriteStateSpec<br/>• event_count<br/>• total_spend<br/>• first_seen / last_seen"]:::state
-            STATE_BAG["BagStateSpec<br/>• pages_visited"]:::state
-            TIMER_INACT["TimerSpec(WATERMARK)<br/>• inactivity_timer (60s gap)<br/>• @on_timer: flush session & clear()"]:::state
-        end
-        PC_SESSIONS[("[( PCollection&lt;dict&gt; )]<br/>Finalized User Profiles")]:::pcoll
-        T_BQ_STATE["PTransform: beam.io.WriteToBigQuery<br/>Name: 'WriteStatefulBQ'"]:::ptrans
-        BQ_SESSIONS[("[( BigQuery Table )]<br/>user_session_profiles")]:::sink
+    subgraph StatefulEngine["2. Stateful Sessionizer & Timers"]
+        STATE_DOFN["'StatefulSessionTracker'<br/><i>ParDo(StatefulSessionizerFn)</i>"]:::state
+        STORE["Per-Key State Store<br/>• ReadModifyWriteStateSpec<br/>• BagStateSpec<br/>• TimerSpec(WATERMARK)"]:::state
+        BQ_STATE[("BigQuery:<br/>user_session_profiles")]:::sink
+        STATE_DOFN <--> STORE
+        STATE_DOFN --> BQ_STATE
     end
 
-    subgraph FanoutEngine["3. Hot Key Fanout Mitigation (with_hot_key_fanout)"]
-        T_EXTRACT["PTransform: beam.Map<br/>Name: 'ExtractUserAmount'"]:::ptrans
-        T_FANOUT["PTransform: CombinePerKey.with_hot_key_fanout(10)<br/>Name: 'CombineWithFanout'"]:::ptrans
-        
-        subgraph TwoPhaseCombine["Automated 2-Phase Combining Layer"]
-            SHARD_PHASE["Phase 1: Salted Intermediate Sharding<br/>Spreads 'usr_hot_influencer' across 10 workers"]:::hotkey
-            MERGE_PHASE["Phase 2: Global Un-salted Combine<br/>Merges partial sums without worker OOM"]:::ptrans
-        end
-        
-        T_FMT_FAN["PTransform: beam.ParDo(FormatFanoutOutputFn)<br/>Name: 'FormatFanoutOutput'"]:::ptrans
-        PC_FANOUT[("[( PCollection&lt;dict&gt; )]<br/>Aggregated Metrics")]:::pcoll
-        T_BQ_FAN["PTransform: beam.io.WriteToBigQuery<br/>Name: 'WriteFanoutBQ'"]:::ptrans
-        BQ_FANOUT[("[( BigQuery Table )]<br/>fanout_user_metrics")]:::sink
+    subgraph FanoutEngine["3. Hot Key Fanout Mitigation"]
+        FANOUT["CombinePerKey.with_hot_key_fanout(10)<br/><i>Phase 1: Salted Sharding</i><br/><i>Phase 2: Global Reduction</i>"]:::hotkey
+        BQ_FANOUT[("BigQuery:<br/>skew_aggregated_metrics")]:::sink
+        FANOUT --> BQ_FANOUT
     end
 
-    INPUT_DATA --> T_READ
-    T_READ --> T_PARSE
-    T_PARSE --> PC_EVENTS
-
-    PC_EVENTS --> T_STATEFUL
-    T_STATEFUL -.-> STATE_SCALAR
-    T_STATEFUL -.-> STATE_BAG
-    T_STATEFUL -.-> TIMER_INACT
-    TIMER_INACT -. "Fires & Clears State" .-> T_STATEFUL
-    T_STATEFUL --> PC_SESSIONS
-    PC_SESSIONS --> T_BQ_STATE
-    T_BQ_STATE --> BQ_SESSIONS
-
-    PC_EVENTS --> T_EXTRACT
-    T_EXTRACT --> T_FANOUT
-    T_FANOUT -.-> SHARD_PHASE
-    SHARD_PHASE --> MERGE_PHASE
-    MERGE_PHASE -.-> T_FANOUT
-    T_FANOUT --> T_FMT_FAN
-    T_FMT_FAN --> PC_FANOUT
-    PC_FANOUT --> T_BQ_FAN
-    T_BQ_FAN --> BQ_FANOUT
+    PARSE --> STATE_DOFN
+    PARSE --> FANOUT
 ```
 </details>
 

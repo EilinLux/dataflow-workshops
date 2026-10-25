@@ -27,45 +27,37 @@ The diagram below contrasts in-place rolling updates with isolated disaster reco
 <summary><b>View Mermaid Source Code</b></summary>
 
 ```mermaid
-flowchart TD
+flowchart LR
     classDef pcoll fill:#e8f0fe,stroke:#4285f4,stroke-width:2px,color:#1a73e8,font-weight:bold;
     classDef ptrans fill:#fef7e0,stroke:#f9ab00,stroke-width:2px,color:#b06000,font-weight:bold;
     classDef sink fill:#e6f4ea,stroke:#34a853,stroke-width:2px,color:#137333,font-weight:bold;
     classDef update fill:#f3e8fd,stroke:#9334e6,stroke-width:2px,color:#6b21a8,font-weight:bold;
     classDef dlq fill:#fee2e2,stroke:#ef4444,stroke-width:2px,color:#991b1b,font-weight:bold;
 
-    subgraph RollingUpdate["1. Zero-Downtime Rolling Update Architecture (--update)"]
-        JOB_V1["Running Job: 'ch06-orders-pipeline' (V1)<br/>• Standard 5% Tax<br/>• Transforms: IngestOrders -> ParseOrders -> CalculateTaxes -> WriteToSink"]:::ptrans
-        DATAFLOW_VALIDATOR{"Dataflow Graph Compatibility Check<br/>• Stable Transform Names Verified<br/>• In-Flight Bundles Drain on V1<br/>• New Bundles Ingest on V2"}:::update
-        JOB_V2["Updated Job: 'ch06-orders-pipeline' (V2)<br/>• Enriched Loyalty Discount on &gt;=$100<br/>• Zero Downtime & Zero Data Loss"]:::update
+    subgraph RollingUpdate["1. Zero-Downtime Rolling Update"]
+        JOB_V1["Running Job V1<br/>Standard Tax (5%)"]:::ptrans
+        CHECK{"Compatibility Check<br/>--update"}:::update
+        JOB_V2["Running Job V2<br/>Loyalty Discount (10%)"]:::update
+        JOB_V1 --> CHECK --> JOB_V2
     end
 
-    subgraph PubSubStorage["2. Google Cloud Pub/Sub with 7-Day Message Retention"]
-        TOPIC[("[( Pub/Sub Topic: orders-stream-topic )]<br/>Message Retention: 7 Days")]:::pcoll
-        PROD_SUB[("[( Live Production Sub )]<br/>orders-stream-sub")]:::pcoll
-        RECOV_SUB[("[( Dedicated Recovery Sub )]<br/>orders-recovery-backfill-sub<br/>Seek to 24 Hours Ago")]:::update
-        DLQ_TOPIC[("[( Dead-Letter Topic )]<br/>orders-dead-letter-topic<br/>Max Delivery Attempts: 5")]:::dlq
+    subgraph PubSub["2. Pub/Sub 7-Day Retention & Seek"]
+        TOPIC[("Pub/Sub Topic<br/>orders-stream")]:::pcoll
+        PROD_SUB[("Live Sub<br/>orders-stream-sub")]:::pcoll
+        RECOV_SUB[("Recovery Sub<br/>seek to -24h")]:::update
+        DLQ[("Dead-Letter Topic<br/>max_delivery=5")]:::dlq
+        TOPIC --> PROD_SUB
+        TOPIC --> RECOV_SUB
+        PROD_SUB -. "Poison Pills" .-> DLQ
     end
 
-    subgraph DataDestinations["3. Resilient Data Destinations & Partition Swap"]
-        PROD_BQ[("[( BigQuery Production Table )]<br/>processed_orders")]:::sink
-        TEMP_BQ[("[( BigQuery Temp Staging )]<br/>temp_orders_backfill<br/>Data Integrity Validated")]:::update
-        SWAP_PROCESS["Atomic Partition Swap / Backfill Merge"]:::ptrans
+    subgraph Sinks["3. Zero-Disruption Backfill"]
+        PROD_BQ[("BigQuery: processed_orders")]:::sink
+        TEMP_BQ[("BigQuery: temp_backfill")]:::update
+        SWAP["Atomic Partition Swap"]:::ptrans
+        JOB_V2 --> PROD_BQ
+        RECOV_SUB --> TEMP_BQ --> SWAP --> PROD_BQ
     end
-
-    JOB_V1 --> DATAFLOW_VALIDATOR
-    DATAFLOW_VALIDATOR --> JOB_V2
-
-    TOPIC --> PROD_SUB
-    TOPIC --> RECOV_SUB
-    PROD_SUB -. "Delivery Failures > 5" .-> DLQ_TOPIC
-
-    PROD_SUB --> JOB_V2
-    JOB_V2 --> PROD_BQ
-
-    RECOV_SUB --> TEMP_BQ
-    TEMP_BQ --> SWAP_PROCESS
-    SWAP_PROCESS --> PROD_BQ
 ```
 </details>
 

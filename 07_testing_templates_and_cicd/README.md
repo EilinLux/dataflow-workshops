@@ -27,48 +27,37 @@ The end-to-end testing, packaging, delivery, and security architecture is shown 
 <summary><b>View Mermaid Source Code</b></summary>
 
 ```mermaid
-flowchart TD
+flowchart LR
     classDef pcoll fill:#e8f0fe,stroke:#4285f4,stroke-width:2px,color:#1a73e8,font-weight:bold;
     classDef ptrans fill:#fef7e0,stroke:#f9ab00,stroke-width:2px,color:#b06000,font-weight:bold;
     classDef sink fill:#e6f4ea,stroke:#34a853,stroke-width:2px,color:#137333,font-weight:bold;
     classDef test fill:#f3e8fd,stroke:#9334e6,stroke-width:2px,color:#6b21a8,font-weight:bold;
     classDef security fill:#fee2e2,stroke:#ef4444,stroke-width:2px,color:#991b1b,font-weight:bold;
 
-    subgraph TestingEngine["1. Deterministic Unit Testing"]
-        TEST_STREAM["TestStream<br/>• Programmatic Elements<br/>• Watermark Advancement"]:::test
-        TEST_PIPE["TestPipeline<br/>• In-Memory Local Runner"]:::test
-        P_ASSERT["PAssert / assert_that<br/>• Exact Value Verification"]:::test
+    subgraph Testing["1. Deterministic Testing"]
+        STREAM["TestStream<br/>Watermark advances"]:::test
+        PIPE["TestPipeline<br/>In-memory execution"]:::test
+        ASSERT["PAssert / assert_that"]:::test
+        STREAM --> PIPE --> ASSERT
     end
 
-    subgraph CICD["2. Automated Cloud Build & Flex Template Pipeline"]
-        SRC_CODE[("[( Git Source Code )]")]:::pcoll
-        CB_TEST["Cloud Build: Step 1<br/>Execute Pytest Suite"]:::ptrans
-        CB_DOCKER["Cloud Build: Step 2<br/>Build & Push Container"]:::ptrans
-        AR_REG[("[( Artifact Registry )]<br/>dataflow-secure-orders:latest")]:::pcoll
-        CB_FLEX["Cloud Build: Step 3<br/>Generate Flex Template Spec"]:::ptrans
-        GCS_SPEC[("[( Cloud Storage )]<br/>secure_orders_template.json")]:::sink
+    subgraph CICD["2. Automated CI/CD & Flex Templates"]
+        GIT[("Git Repository")]:::pcoll
+        CB_TEST["Cloud Build: Pytest"]:::ptrans
+        CB_DOCKER["Docker Build & Push"]:::ptrans
+        AR[("Artifact Registry Image")]:::pcoll
+        GCS[("GCS Template Spec")]:::sink
+        GIT --> CB_TEST --> CB_DOCKER --> AR --> GCS
     end
 
-    subgraph SecurityPerimeter["3. Enterprise Security Boundary"]
-        VPC_NET["Private VPC Subnetwork<br/>• No Public Internet Access"]:::security
-        DATAFLOW_WORKERS["Dataflow Worker VMs<br/>• Private IPs (--no-use-public-ips)<br/>• Private Google Access Routing"]:::security
-        KMS_CMEK["Cloud KMS (CMEK)<br/>• Customer-Managed Encryption Keys<br/>• Transparent at Rest & in Transit"]:::security
-        SECURE_BQ[("[( BigQuery Destination Table )]<br/>Encrypted with CMEK Key")]:::sink
+    subgraph Security["3. Enterprise Security Boundary"]
+        VPC["Private VPC (No Public IPs)"]:::security
+        WORKERS["Dataflow Workers (--no-use-public-ips)"]:::security
+        CMEK["Cloud KMS (CMEK Encryption)"]:::security
+        BQ_SECURE[("BigQuery CMEK Encrypted")]:::sink
+        VPC --> WORKERS
+        CMEK --> WORKERS --> BQ_SECURE
     end
-
-    TEST_STREAM --> TEST_PIPE
-    TEST_PIPE --> P_ASSERT
-
-    SRC_CODE --> CB_TEST
-    CB_TEST --> CB_DOCKER
-    CB_DOCKER --> AR_REG
-    AR_REG --> CB_FLEX
-    CB_FLEX --> GCS_SPEC
-
-    GCS_SPEC -. "Launch via flex-template run" .-> DATAFLOW_WORKERS
-    VPC_NET --> DATAFLOW_WORKERS
-    KMS_CMEK -. "Encrypts Disks & Sinks" .-> DATAFLOW_WORKERS
-    DATAFLOW_WORKERS --> SECURE_BQ
 ```
 </details>
 

@@ -59,40 +59,44 @@ In `p | "FilterDate" >> beam.ParDo(...)`, the string `"FilterDate"` is a critica
 ![Retail Sales Pipeline DAG](../artifacts/01_sales_pipeline_dag.png)
 
 ```mermaid
-flowchart TD
+flowchart LR
     classDef pcoll fill:#e8f0fe,stroke:#4285f4,stroke-width:2px,color:#1a73e8,font-weight:bold;
     classDef ptrans fill:#fef7e0,stroke:#f9ab00,stroke-width:2px,color:#b06000,font-weight:bold;
 
-    RAW[("[( sales_data.csv )]<br/>Local Disk / Cloud Storage")]:::pcoll
-    READ["PTransform: beam.io.ReadFromText<br/>Name: 'ReadCSV'"]:::ptrans
-    PC_RAW[("[( PCollection&lt;str&gt; )]<br/>Raw CSV lines")]:::pcoll
-    PARSE["PTransform: beam.ParDo(ParseSalesRecordFn)<br/>Name: 'ParseRecords'"]:::ptrans
-    PC_PARSED[("[( PCollection&lt;dict&gt; )]<br/>Parsed sales records")]:::pcoll
-    FILTER["PTransform: beam.ParDo(FilterByDateFn)<br/>Name: 'FilterDate'"]:::ptrans
-    PC_FILTERED[("[( PCollection&lt;dict&gt; )]<br/>Records for 2025-06-12")]:::pcoll
-    MAP["PTransform: beam.Map(extract_kv)<br/>Name: 'ExtractProductAmount'"]:::ptrans
-    PC_KV[("[( PCollection&lt;tuple&gt; )]<br/>(product_id, amount) pairs")]:::pcoll
-    COMBINE["PTransform: beam.CombinePerKey(sum)<br/>Name: 'AggregateRevenuePerProduct'"]:::ptrans
-    PC_AGG[("[( PCollection&lt;tuple&gt; )]<br/>(product_id, total_revenue)")]:::pcoll
-    FORMAT["PTransform: beam.Map(format_output)<br/>Name: 'FormatOutput'"]:::ptrans
-    PC_STR[("[( PCollection&lt;str&gt; )]<br/>Formatted summary strings")]:::pcoll
-    WRITE["PTransform: beam.io.WriteToText<br/>Name: 'WriteResults'"]:::ptrans
-    OUT[("[( Partitioned Text Files )]<br/>revenue_summary-*.txt")]:::pcoll
+    subgraph S1["1. Ingestion"]
+        RAW[("sales_data.csv")]:::pcoll
+        T_READ["'ReadCSV'<br/><i>ReadFromText</i>"]:::ptrans
+        PC_RAW[("Raw Lines")]:::pcoll
+        RAW --> T_READ --> PC_RAW
+    end
 
-    RAW --> READ
-    READ --> PC_RAW
-    PC_RAW --> PARSE
-    PARSE --> PC_PARSED
-    PC_PARSED --> FILTER
-    FILTER --> PC_FILTERED
-    PC_FILTERED --> MAP
-    MAP --> PC_KV
-    PC_KV --> COMBINE
-    COMBINE --> PC_AGG
-    PC_AGG --> FORMAT
-    FORMAT --> PC_STR
-    PC_STR --> WRITE
-    WRITE --> OUT
+    subgraph S2["2. Parse & Filter"]
+        T_PARSE["'ParseRecords'<br/><i>ParseSalesRecordFn</i>"]:::ptrans
+        PC_PARSED[("Parsed Dicts")]:::pcoll
+        T_FILTER["'FilterDate'<br/><i>FilterByDateFn</i>"]:::ptrans
+        PC_FILTERED[("Target Date")]:::pcoll
+        T_PARSE --> PC_PARSED --> T_FILTER --> PC_FILTERED
+    end
+
+    subgraph S3["3. Aggregate"]
+        T_MAP["'ExtractProductAmount'<br/><i>Map(extract_kv)</i>"]:::ptrans
+        PC_KV[("(product_id, amount)")]:::pcoll
+        T_COMBINE["'AggregateRevenue'<br/><i>CombinePerKey(sum)</i>"]:::ptrans
+        PC_AGG[("(product_id, total)")]:::pcoll
+        T_MAP --> PC_KV --> T_COMBINE --> PC_AGG
+    end
+
+    subgraph S4["4. Format & Sink"]
+        T_FORMAT["'FormatOutput'<br/><i>Map(format_output)</i>"]:::ptrans
+        PC_STR[("Formatted Strings")]:::pcoll
+        T_WRITE["'WriteResults'<br/><i>WriteToText</i>"]:::ptrans
+        OUT[("revenue_summary-*.txt")]:::pcoll
+        T_FORMAT --> PC_STR --> T_WRITE --> OUT
+    end
+
+    PC_RAW --> T_PARSE
+    PC_FILTERED --> T_MAP
+    PC_AGG --> T_FORMAT
 ```
 
 ---

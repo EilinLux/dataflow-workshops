@@ -23,58 +23,39 @@ The pipeline ingests raw transactions containing both valid and intentionally co
 <summary><b>Click to expand raw Mermaid flowchart definition</b></summary>
 
 ```mermaid
-flowchart TD
+flowchart LR
     classDef pcoll fill:#e8f0fe,stroke:#4285f4,stroke-width:2px,color:#1a73e8,font-weight:bold;
     classDef ptrans fill:#fef7e0,stroke:#f9ab00,stroke-width:2px,color:#b06000,font-weight:bold;
     classDef sink fill:#e6f4ea,stroke:#34a853,stroke-width:2px,color:#137333,font-weight:bold;
     classDef dlq fill:#fce8e6,stroke:#ea4335,stroke-width:2px,color:#c5221f,font-weight:bold;
 
-    subgraph Inputs["1. Raw Ingestion"]
-        SALES_CSV[("[( sales_data_with_errors.csv )]<br/>Raw Transactions (with errors)")]:::pcoll
-        CATALOG_JSON[("[( product_catalog.json )]<br/>Reference Product Dimension")]:::pcoll
+    subgraph Ingest["1. Inputs & Side Input"]
+        SALES[("sales_data_with_errors.csv")]:::pcoll
+        CATALOG[("product_catalog.json")]:::pcoll
+        T_CAT["'ReadCatalog'<br/><i>ParseCatalogFn</i>"]:::ptrans
+        PC_CAT[("Catalog Map")]:::pcoll
+        CATALOG --> T_CAT --> PC_CAT
     end
 
-    subgraph SideInput["2. Side Input Creation"]
-        T_CAT_READ["PTransform: beam.io.ReadFromText<br/>Name: 'ReadCatalog'"]:::ptrans
-        T_CAT_PARSE["PTransform: beam.ParDo(ParseCatalogFn)<br/>Name: 'ParseCatalog'"]:::ptrans
-        PC_CATALOG[("[( PCollection&lt;tuple&gt; )]<br/>(product_id, metadata)")]:::pcoll
+    subgraph Processing["2. Validate, Enrich & Branch"]
+        T_SALES["'ReadSales'<br/><i>ReadFromText</i>"]:::ptrans
+        T_ENRICH["'ValidateAndEnrich'<br/><i>ValidateAndEnrichFn</i>"]:::ptrans
+        PC_VALID[("Valid Enriched Sales")]:::pcoll
+        PC_DLQ[("Poison Records DLQ")]:::dlq
+        SALES --> T_SALES --> T_ENRICH
+        PC_CAT -. "Side Input: AsDict" .-> T_ENRICH
+        T_ENRICH -- "Main Output" --> PC_VALID
+        T_ENRICH -- "Tagged Output ('dead_letter')" --> PC_DLQ
     end
 
-    subgraph Core["3. Processing & Validation Engine"]
-        T_SALES_READ["PTransform: beam.io.ReadFromText<br/>Name: 'ReadSales'"]:::ptrans
-        PC_RAW_SALES[("[( PCollection&lt;str&gt; )]<br/>Raw CSV Lines")]:::pcoll
-        T_ENRICH["PTransform: beam.ParDo(ValidateAndEnrichFn)<br/>Name: 'ValidateAndEnrich'"]:::ptrans
+    subgraph Sinks["3. Dual-Sink Persistence"]
+        T_BQ["'WriteToBigQuery'<br/><i>Storage Write API</i>"]:::ptrans
+        BQ[("BigQuery: curated_sales")]:::sink
+        T_DLQ["'WriteDLQ'<br/><i>WriteToText</i>"]:::ptrans
+        GCS_DLQ[("GCS: dead_letter-*.json")]:::dlq
+        PC_VALID --> T_BQ --> BQ
+        PC_DLQ --> T_DLQ --> GCS_DLQ
     end
-
-    subgraph Outputs["4. Dual-Sink Routing"]
-        PC_VALID[("[( PCollection&lt;dict&gt; (Main Output) )]<br/>Enriched Valid Sales")]:::pcoll
-        PC_DLQ[("[( PCollection&lt;dict&gt; ('dead_letter' Tag) )]<br/>Poison Records")]:::dlq
-        
-        T_BQ["PTransform: beam.io.WriteToBigQuery<br/>Name: 'WriteToBigQuery' (Storage Write API)"]:::ptrans
-        BQ_TABLE[("[( BigQuery Table )]<br/>curated_sales")]:::sink
-        
-        T_DLQ["PTransform: beam.io.WriteToText<br/>Name: 'WriteDLQ'"]:::ptrans
-        DLQ_FILES[("[( Cloud Storage DLQ )]<br/>dead_letter_records-*.json")]:::dlq
-    end
-
-    CATALOG_JSON --> T_CAT_READ
-    T_CAT_READ --> T_CAT_PARSE
-    T_CAT_PARSE --> PC_CATALOG
-    
-    SALES_CSV --> T_SALES_READ
-    T_SALES_READ --> PC_RAW_SALES
-    PC_RAW_SALES --> T_ENRICH
-
-    PC_CATALOG -. "Side Input: beam.pvalue.AsDict" .-> T_ENRICH
-
-    T_ENRICH -- "Main Output" --> PC_VALID
-    T_ENRICH -- "Tagged Output ('dead_letter')" --> PC_DLQ
-
-    PC_VALID --> T_BQ
-    T_BQ --> BQ_TABLE
-
-    PC_DLQ --> T_DLQ
-    T_DLQ --> DLQ_FILES
 ```
 </details>
 
