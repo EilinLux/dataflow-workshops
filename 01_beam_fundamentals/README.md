@@ -3,22 +3,14 @@
 ## Table of Contents
 
 - [Overview](#overview)
-  - [What You Will Learn](#what-you-will-learn)
+
 - [Real-World Production Problem & Storyline](#real-world-production-problem--storyline)
 - [Chapter Contents](#chapter-contents)
 - [Pipeline Architecture & DAG Syntax](#pipeline-architecture--dag-syntax)
-  - [Visual Shape Legend](#visual-shape-legend)
-  - [What Does the "Unique Transform Name" Stand For?](#what-does-the-unique-transform-name-stand-for)
 - [Core Concepts Deep Dive: DoFn vs. beam.ParDo](#core-concepts-deep-dive-dofn-vs-beam-pardo)
-  - [The Core Distinction: Logic vs. Execution Harness](#the-core-distinction-logic-vs-execution-harness)
-  - [How They Work Together: Distributed Execution Lifecycle](#how-they-work-together-distributed-execution-lifecycle)
-  - [Architecture & Execution Flow Diagram](#architecture--execution-flow-diagram)
-  - [Comparison Matrix: DoFn vs. beam.ParDo](#comparison-matrix-dofn-vs-beam-pardo)
-  - [Common Anti-Patterns & Pitfalls](#common-anti-patterns--pitfalls)
+
 - [Environment Setup & Activating the Kernel](#environment-setup--activating-the-kernel)
 - [Quick Start: Running the Pipeline](#quick-start-running-the-pipeline)
-  - [1. Run Locally with DirectRunner](#1-run-locally-with-directrunner)
-  - [2. Run on Google Cloud Dataflow](#2-run-on-google-cloud-dataflow)
 - [Official Documentation & Deep Dives](#official-documentation--deep-dives)
 
 ---
@@ -39,8 +31,8 @@ You will build your first data pipeline processing the **Retail Sales** dataset 
 2. **Core Abstractions**:
    * **`Pipeline`**: The directed graph managing execution flow and configuration.
    * **`PCollection`**: Immutable distributed datasets (bounded or unbounded).
-   * **`PTransform`**: Operations applied to `PCollections` using the pipe syntax (`|`).
-   * **`DoFn` / `beam.ParDo`**: User-defined element-wise transformation functions.
+   * **`PTransform`**: In Apache Beam Python, a `PTransform` represents an operation (a step in your directed acyclic graph, or DAG) that takes one or more `PCollections` as input, performs work, and produces zero or more `PCollections` as output.`[Output PCollection] = [Input PCollection] | [Transform Label] >> [PTransform]`. The pipe syntax (`|`) is Python operator overloading at work to make writing and visualizing pipelines intuitive and readable. 
+   * **`DoFn` / `beam.ParDo`**: User-defined element-wise transformation functions. In Apache Beam, a `DoFn` is the user-defined logic specifying what to do with each element, while `ParDo` is the pipeline transform (`PTransform`) that executes that logic in parallel across a `PCollection`.
    * **`CombinePerKey`**: Associative and commutative aggregations with partial local combine.
 3. **Execution Environments (Runners)**:
    * **`DirectRunner`**: Local execution for fast iteration, debugging, and unit tests without cloud costs.
@@ -61,9 +53,9 @@ Previously, the engineering team executed a single-node Python script using pand
 
 ### How This Chapter's Demo Solves It
 We replace the fragile single-node script with a distributed **Apache Beam** batch pipeline:
-- **`beam.io.ReadFromText`**: Reads massive files in parallel chunks without exhausting worker memory.
-- **Custom `DoFn` (`ParseSalesRecordFn`, `FilterByDateFn`)**: Parses records into typed dictionaries and isolates business logic.
-- **`CombinePerKey(sum)`**: Executes partial combiner aggregation locally on worker VMs before distributed shuffle, slashing network transfer.
+- **`beam.io.ReadFromText`**: Reads *massive files in parallel chunks* without exhausting worker memory.
+- **Custom `DoFn` (`ParseSalesRecordFn`, `FilterByDateFn`)**: `DoFn`is a base Python class, used to define user-defined logic specifying what to do with each element. In this case, `ParseSalesRecordFn(beam.DoFn` parses records into typed dictionaries and `FilterByDateFn(beam.DoFn)` filters out records outside of a specified date range.
+- **`CombinePerKey(sum)`**: a core transform that aggregates all values associated with each key in a keyed PCollection (i.e., a collection of (key, value) pairs) using an associative and commutative combining function.Executes partial combiner aggregation locally on worker VMs before distributed shuffle, slashing network transfer.
 - **Run Anywhere**: Developers test locally on workstation sample data with **`DirectRunner`**, then deploy to **`DataflowRunner`** where Google Cloud provisions, balances, and tears down worker VMs automatically.
 
 ### Storyline Connection

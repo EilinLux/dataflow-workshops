@@ -1,5 +1,15 @@
 # Google Cloud Dataflow & Apache Beam Workshop
 
+[![Apache Beam](https://img.shields.io/badge/Apache_Beam-2.56+-FF6F00?logo=apachebeam&logoColor=white)](https://beam.apache.org/)
+[![Google Cloud Dataflow](https://img.shields.io/badge/Google_Cloud-Dataflow-4285F4?logo=googlecloud&logoColor=white)](https://cloud.google.com/dataflow)
+[![Google Cloud Pub/Sub](https://img.shields.io/badge/Google_Cloud-Pub%2FSub-4285F4?logo=googlecloud&logoColor=white)](https://cloud.google.com/pubsub)
+[![Google BigQuery](https://img.shields.io/badge/Google_Cloud-BigQuery-669DF6?logo=googlecloud&logoColor=white)](https://cloud.google.com/bigquery)
+[![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![uv](https://img.shields.io/badge/uv-Fast_Python_Tooling-DE5FE9?logo=astral&logoColor=white)](https://docs.astral.sh/uv/)
+[![Docker](https://img.shields.io/badge/Docker-Flex_Templates-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![Cloud Build](https://img.shields.io/badge/CI%2FCD-Cloud_Build-4285F4?logo=googlecloud&logoColor=white)](https://cloud.google.com/build)
+
+
 > **Google Cloud Modern Data Engineering Series**
 > * **Stream & Serverless Processing Layer (This Repo):** [`dataflow-workshops`](https://github.com/EilinLux/dataflow-workshops) *(Unified Batch & Streaming Pipelines with Apache Beam, Streaming Engine & Flex Templates)*
 > * **Compute Layer:** [`dataproc-workshop`](https://github.com/EilinLux/dataproc-workshop) *(Developing PySpark ETL jobs & `utils.py` on Dataproc Clusters and Dataproc Serverless)*
@@ -8,39 +18,84 @@
 
 ---
 
-## Table of Contents
+## Workshop Presentation
 
-- [What is Google Cloud Dataflow?](#what-is-google-cloud-dataflow)
-- [Core Pillars of Google Cloud Dataflow](#core-pillars-of-google-cloud-dataflow)
-  - [1. Unified Batch and Streaming with Apache Beam](#1-unified-batch-and-streaming-with-apache-beam)
-  - [2. True Serverless & Zero-Ops Management](#2-true-serverless--zero-ops-management)
-  - [3. Dynamic Work Rebalancing (Liquid Shuffling)](#3-dynamic-work-rebalancing-liquid-shuffling)
-  - [4. Decoupled Compute and State: Streaming Engine & Dataflow Shuffle](#4-decoupled-compute-and-state-streaming-engine--dataflow-shuffle)
-  - [5. Robust Exactly-Once Semantics & Event-Time Processing](#5-robust-exactly-once-semantics--event-time-processing)
-  - [6. Dataflow Templates & Flex Templates](#6-dataflow-templates--flex-templates)
-- [Dataflow vs. Dataproc: When to Use What?](#dataflow-vs-dataproc-when-to-use-what)
-- [End-to-End Workshop Pipeline Architecture](#end-to-end-workshop-pipeline-architecture)
-- [The Workshop Storyline: From Local Beam to Enterprise Streaming](#the-workshop-storyline-from-local-beam-to-enterprise-streaming)
-  - [Chapter 01 — Apache Beam & Dataflow Fundamentals](01_beam_fundamentals/)
-  - [Chapter 02 — Deep Dive into PTransforms & BigQuery I/O](02_transforms_and_bigquery/)
-  - [Chapter 03 — Real-Time Streaming, Windowing & Late Data](03_realtime_streaming/)
-  - [Chapter 04 — Stateful Processing, Timers & Hot Key Fanout](04_stateful_processing_and_hotkeys/)
-  - [Chapter 05 — Production Performance, Streaming Engine & Observability](05_streaming_engine_and_monitoring/)
-  - [Chapter 06 — Resilient Operations, Disaster Recovery & Rolling Updates](06_operations_replay_and_updates/)
-  - [Chapter 07 — Unit Testing, Docker Flex Templates, CI/CD & Security](07_testing_templates_and_cicd/)
-- [Repository Structure](#repository-structure)
-- [Apache Beam & Dataflow Core Concepts Quick Reference](#apache-beam--dataflow-core-concepts-quick-reference)
-- [Environment Setup & Activating the Kernel with uv](#environment-setup--activating-the-kernel-with-uv)
-  - [1. Install `uv`](#1-install-uv-if-not-already-installed)
-  - [2. Create or Synchronize the Virtual Environment](#2-create-or-synchronize-the-virtual-environment-uv-sync)
-  - [3. How to Activate the Environment](#3-how-to-activate-the-environment)
-- [Google Cloud Prerequisites & Quick Start](#google-cloud-prerequisites--quick-start)
-  - [1. Authenticate and Configure GCP Project](#1-authenticate-and-configure-gcp-project)
-  - [2. Enable Required APIs](#2-enable-required-apis)
-  - [3. Create Cloud Storage Buckets](#3-create-cloud-storage-buckets)
-  - [4. Create and Configure Local `.env`](#4-create-and-configure-local-env)
-- [Companion Workshops in the Data Engineering Series](#companion-workshops-in-the-data-engineering-series)
-- [Official Documentation & Deep Dives](#official-documentation--deep-dives)
+### Executive Overview
+
+Welcome to the **Google Cloud Dataflow & Apache Beam Workshop**—a comprehensive, hands-on curriculum built for data engineers, streaming architects, and cloud practitioners.
+
+In distributed data processing, most online tutorials rely on simplistic `wordcount` examples that fail when faced with real-world scale. Production systems do not operate in a vacuum of clean, well-behaved data; they encounter network delays, out-of-order event arrivals, catastrophic hot key skew, worker memory leaks, poison pill crashes, and strict enterprise security constraints.
+
+This workshop provides a production-grade blueprint modeling **OmniRetail**, an omnichannel commerce enterprise processing millions of transactions per day. Across **7 progressive chapters**, you will navigate real production crises and implement the battle-tested architectural patterns required to solve them—progressing from local workstation development (`DirectRunner`) to Google Cloud serverless streaming (`DataflowRunner`).
+
+---
+
+### What Makes This Workshop Unique?
+
+![Workshop Architecture Pillars](artifacts/00_workshop_architecture_pillars.png)
+
+<details>
+<summary><b>Click to expand raw Mermaid flowchart definition</b></summary>
+
+```mermaid
+flowchart LR
+    classDef prod fill:#e8f0fe,stroke:#4285f4,stroke-width:2px,color:#1a73e8,font-weight:bold;
+    classDef arch fill:#fef7e0,stroke:#f9ab00,stroke-width:2px,color:#b06000,font-weight:bold;
+    classDef ops fill:#e6f4ea,stroke:#34a853,stroke-width:2px,color:#137333,font-weight:bold;
+    classDef sec fill:#f3e8fd,stroke:#9334e6,stroke-width:2px,color:#6b21a8,font-weight:bold;
+
+    A["<b>1. Unified Programming</b><br/>Write once in Apache Beam<br/>DirectRunner to Dataflow"]:::prod
+    B["<b>2. Production Hardening</b><br/>Dead-Letter Queues (DLQ)<br/>Side Inputs & Hot Key Fanout"]:::arch
+    C["<b>3. Resilient Operations</b><br/>Streaming Engine Decoupling<br/>Zero-Downtime Rolling Updates"]:::ops
+    D["<b>4. Enterprise Governance</b><br/>Deterministic TestStream<br/>Docker Flex Templates & CMEK"]:::sec
+
+    A --> B --> C --> D
+```
+
+</details>
+
+| Dimension | Standard Online Tutorials | This Enterprise Workshop |
+| :--- | :--- | :--- |
+| **Data Realism** | Static text files with trivial words | High-throughput e-commerce transactions, malformed JSON/CSV, POS logs |
+| **Execution Model** | Batch-only or isolated streams | **Unified Beam Model**: seamless transition from batch to unbounded streaming |
+| **Failure Handling** | Ignored (assumes 100% clean data) | **Active chaos mitigation**: poison pills, late data, key skew, OOM prevention |
+| **Data Enrichment** | Costly distributed joins (`CoGroupByKey`) | Broadcast **Side Inputs** (`beam.pvalue.AsDict`) for $O(1)$ zero-shuffle lookups |
+| **State & Windowing** | Basic fixed 5-minute windows | Fixed (tumbling), sliding, session windows, stateful `@StateId`, and `@TimerId` |
+| **Stream Operations** | Destructive job cancellation | **Zero-downtime rolling updates (`--update`)**, isolated Pub/Sub seek backfills |
+| **Production Security** | Default public IPs & default keys | **Private IPs** (`--no-use-public-ips`), Private Google Access, and **Cloud KMS CMEK** |
+| **Automation & CI/CD** | Ad-hoc manual terminal runs | Containerized **Flex Templates** on Artifact Registry and **Cloud Build** CI/CD |
+
+---
+
+### Target Audience & Learning Outcomes
+
+* **Target Roles**: Senior Data Engineers, Analytics Engineers, Cloud Solutions Architects, and Platform Infrastructure Engineers.
+* **Prerequisites**: Familiarity with Python (functions, generators, dicts) and general distributed systems concepts. No prior Apache Beam or Dataflow experience is required.
+* **What You Will Walk Away With**:
+  1. **Complete Reference Architecture**: 7 production pipelines and test suites ready to adapt directly for enterprise projects.
+  2. **Beam Programming Fluency**: In-depth mastery of Beam core primitives (`PCollection`, `PTransform`, `DoFn`, `CombinePerKey`, `WindowInto`, `TestStream`).
+  3. **Cloud Dataflow Mastery**: Decoupled state management via **Streaming Engine**, Pub/Sub Ordering Keys, BigQuery **Storage Write API**, and Cloud Monitoring SLA alerts.
+  4. **Enterprise Governance Skills**: Packaging pipelines into Docker Flex Templates, automating unit and streaming tests, and satisfying SOC2/PCI-DSS compliance via VPC isolation and CMEK encryption.
+
+---
+
+### Workshop Curriculum & Delivery Format
+
+Every chapter in this workshop follows a standardized four-part delivery format:
+1. **Interactive Jupyter Notebook (`.ipynb`)**: For rapid visual exploration, step-by-step experimentation, and DAG inspection with pre-rendered diagrams.
+2. **Modular Production Script (`pipelines/`)**: Clean, CLI-configurable Python pipelines using industry-standard flags.
+3. **Execution Shell Scripts (`scripts/`)**: Pre-configured one-click scripts for local testing (`DirectRunner`) and cloud deployment (`DataflowRunner`).
+4. **Comprehensive Documentation (`README.md`)**: Complete architectural deep dives, visual diagrams, failure mode case studies, and official Google Cloud documentation links.
+
+```text
+01_beam_fundamentals/               -> From Single-Node Pandas to Distributed Beam
+02_transforms_and_bigquery/         -> Broadcast Side Inputs & Dead-Letter Queues (DLQ)
+03_realtime_streaming/              -> Pub/Sub Unbounded Streams & 3 Window Topologies
+04_stateful_processing_and_hotkeys/ -> Hot Key Fanout & Inactivity State Timers
+05_streaming_engine_and_monitoring/ -> Streaming Engine & Cloud Monitoring SLA Alerts
+06_operations_replay_and_updates/   -> In-Place Rolling Updates & 24h Disaster Recovery
+07_testing_templates_and_cicd/      -> TestStream, Docker Flex Templates, CI/CD & CMEK
+```
 
 ---
 
@@ -81,6 +136,46 @@ flowchart LR
 With Dataflow, you define your pipeline logic using the open-source **Apache Beam SDK** and deploy it to Google Cloud. Dataflow automatically provisions compute resources, balances workloads dynamically across worker VMs, integrates natively with Google Cloud managed storage services, and tears down infrastructure when batch jobs finish—or scales horizontally to absorb unpredictable streaming traffic spikes with millisecond latency.
 
 ---
+## Table of Contents
+
+- [Workshop Presentation](#workshop-presentation)
+  - [Executive Overview](#executive-overview)
+  - [What Makes This Workshop Unique?](#what-makes-this-workshop-unique)
+  - [Target Audience & Learning Outcomes](#target-audience--learning-outcomes)
+  - [Workshop Curriculum & Delivery Format](#workshop-curriculum--delivery-format)
+- [What is Google Cloud Dataflow?](#what-is-google-cloud-dataflow)
+- [Core Pillars of Google Cloud Dataflow](#core-pillars-of-google-cloud-dataflow)
+  - [1. Unified Batch and Streaming with Apache Beam](#1-unified-batch-and-streaming-with-apache-beam)
+  - [2. True Serverless & Zero-Ops Management](#2-true-serverless--zero-ops-management)
+  - [3. Dynamic Work Rebalancing (Liquid Shuffling)](#3-dynamic-work-rebalancing-liquid-shuffling)
+  - [4. Decoupled Compute and State: Streaming Engine & Dataflow Shuffle](#4-decoupled-compute-and-state-streaming-engine--dataflow-shuffle)
+  - [5. Robust Exactly-Once Semantics & Event-Time Processing](#5-robust-exactly-once-semantics--event-time-processing)
+  - [6. Dataflow Templates & Flex Templates](#6-dataflow-templates--flex-templates)
+
+- [End-to-End Workshop Pipeline Architecture](#end-to-end-workshop-pipeline-architecture)
+- [The Workshop Storyline: From Local Beam to Enterprise Streaming](#the-workshop-storyline-from-local-beam-to-enterprise-streaming)
+  - [Chapter 01 — Apache Beam & Dataflow Fundamentals](01_beam_fundamentals/)
+  - [Chapter 02 — Deep Dive into PTransforms & BigQuery I/O](02_transforms_and_bigquery/)
+  - [Chapter 03 — Real-Time Streaming, Windowing & Late Data](03_realtime_streaming/)
+  - [Chapter 04 — Stateful Processing, Timers & Hot Key Fanout](04_stateful_processing_and_hotkeys/)
+  - [Chapter 05 — Production Performance, Streaming Engine & Observability](05_streaming_engine_and_monitoring/)
+  - [Chapter 06 — Resilient Operations, Disaster Recovery & Rolling Updates](06_operations_replay_and_updates/)
+  - [Chapter 07 — Unit Testing, Docker Flex Templates, CI/CD & Security](07_testing_templates_and_cicd/)
+- [Repository Structure](#repository-structure)
+- [Apache Beam & Dataflow Core Concepts Quick Reference](#apache-beam--dataflow-core-concepts-quick-reference)
+- [Environment Setup & Activating the Kernel with uv](#environment-setup--activating-the-kernel-with-uv)
+  - [1. Install `uv`](#1-install-uv-if-not-already-installed)
+  - [2. Create or Synchronize the Virtual Environment](#2-create-or-synchronize-the-virtual-environment-uv-sync)
+  - [3. How to Activate the Environment](#3-how-to-activate-the-environment)
+- [Google Cloud Prerequisites & Quick Start](#google-cloud-prerequisites--quick-start)
+  - [1. Authenticate and Configure GCP Project](#1-authenticate-and-configure-gcp-project)
+  - [2. Enable Required APIs](#2-enable-required-apis)
+  - [3. Create Cloud Storage Buckets](#3-create-cloud-storage-buckets)
+  - [4. Create and Configure Local `.env`](#4-create-and-configure-local-env)
+- [Official Documentation & Deep Dives](#official-documentation--deep-dives)
+- [Dataflow vs. Dataproc: When to Use What?](#dataflow-vs-dataproc-when-to-use-what)
+
+---
 
 ## Core Pillars of Google Cloud Dataflow
 
@@ -116,21 +211,7 @@ Dataflow simplifies enterprise operations through containerized **Flex Templates
 * Developers package Beam pipelines inside standard Docker containers and store the template specification in Cloud Storage.
 * Non-developers, automated CI/CD pipelines, or orchestration engines (such as **Cloud Composer / Apache Airflow**) can trigger jobs with custom runtime parameters via the `gcloud` CLI, REST API, or Cloud Console without needing a local Python/Java development environment.
 
----
 
-## Dataflow vs. Dataproc: When to Use What?
-
-Both **Dataflow** and **Dataproc** are premier data processing services on Google Cloud, but they serve different engineering paradigms:
-
-| Feature / Criteria | Google Cloud Dataflow | Google Cloud Dataproc |
-| :--- | :--- | :--- |
-| **Primary Programming Model** | **Apache Beam** (Python, Java, Go, YAML) | **Apache Spark**, PySpark, Hadoop, Flink, Presto |
-| **Infrastructure Model** | **Fully Serverless**: Zero cluster management, no master nodes | **Cluster-Centric** (Compute Engine VMs) or **Dataproc Serverless** |
-| **Batch vs. Streaming** | **Unified Engine**: Native, world-class streaming with millisecond latency | Primarily batch/micro-batch (**Spark Structured Streaming**) |
-| **Autoscaling Mechanism** | Dynamic work rebalancing + Liquid Shuffling | YARN / Spark dynamic allocation + VM autoscaling policies |
-| **Windowing & Watermarks** | Comprehensive, native out-of-order event-time processing | Supported via Spark Structured Streaming watermarks |
-| **Ecosystem Portability** | Write once in Beam; run on Dataflow, Spark, Flink, or DirectRunner | Write once in Spark; run on Dataproc, EMR, on-prem, or Databricks |
-| **Best Used For** | Real-time event streams (Pub/Sub $\rightarrow$ BigQuery), event-time analytics, serverless ETL | Legacy Spark/Hadoop migrations, Spark MLlib, ad-hoc interactive Jupyter analysis |
 
 ---
 
@@ -500,13 +581,7 @@ cp .env.example .env
 
 ---
 
-## Companion Workshops in the Data Engineering Series
 
-* **Part 1 — Compute Layer:** [`dataproc-workshop`](https://github.com/EilinLux/dataproc-workshop) *(Apache Spark, Dataproc Clusters, Component Gateway & Dataproc Serverless)*
-* **Part 2 — Orchestration Layer:** [`composer-workshop`](https://github.com/EilinLux/composer-workshop) *(Cloud Composer 3, Airflow TaskFlow API, Deferrable Sensors & BigQuery Quality Gates)*
-* **Part 3 — Production CI/CD Blueprint:** [`CiCdAirFlowDagTemplate`](https://github.com/EilinLux/CiCdAirFlowDagTemplate) *(Automated Cloud Build pipelines for testing and deployment)*
-
----
 
 ## Official Documentation & Deep Dives
 
@@ -531,3 +606,18 @@ cp .env.example .env
 * [BigQuery Storage Write API Documentation](https://cloud.google.com/bigquery/docs/write-api) — High-performance, exactly-once append streams.
 * [Dataflow Cloud Monitoring Metrics](https://cloud.google.com/dataflow/docs/guides/monitoring-overview) — Understanding System Lag, Data Freshness, and Autoscaling metrics.
 
+---
+
+## Dataflow vs. Dataproc: When to Use What?
+
+Both **Dataflow** and **Dataproc** are premier data processing services on Google Cloud, but they serve different engineering paradigms:
+
+| Feature / Criteria | Google Cloud Dataflow | Google Cloud Dataproc |
+| :--- | :--- | :--- |
+| **Primary Programming Model** | **Apache Beam** (Python, Java, Go, YAML) | **Apache Spark**, PySpark, Hadoop, Flink, Presto |
+| **Infrastructure Model** | **Fully Serverless**: Zero cluster management, no master nodes | **Cluster-Centric** (Compute Engine VMs) or **Dataproc Serverless** |
+| **Batch vs. Streaming** | **Unified Engine**: Native, world-class streaming with millisecond latency | Primarily batch/micro-batch (**Spark Structured Streaming**) |
+| **Autoscaling Mechanism** | Dynamic work rebalancing + Liquid Shuffling | YARN / Spark dynamic allocation + VM autoscaling policies |
+| **Windowing & Watermarks** | Comprehensive, native out-of-order event-time processing | Supported via Spark Structured Streaming watermarks |
+| **Ecosystem Portability** | Write once in Beam; run on Dataflow, Spark, Flink, or DirectRunner | Write once in Spark; run on Dataproc, EMR, on-prem, or Databricks |
+| **Best Used For** | Real-time event streams (Pub/Sub $\rightarrow$ BigQuery), event-time analytics, serverless ETL | Legacy Spark/Hadoop migrations, Spark MLlib, ad-hoc interactive Jupyter analysis |
