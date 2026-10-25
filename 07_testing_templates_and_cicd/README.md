@@ -183,3 +183,15 @@ Launch the containerized template with Private IPs, custom VPC subnetwork, and C
 ```bash
 bash 07_testing_templates_and_cicd/scripts/03_run_secure_flex_template.sh
 ```
+
+---
+
+## Official Documentation & Deep Dives
+
+* [Testing Apache Beam Pipelines](https://beam.apache.org/documentation/pipelines/test-your-pipeline/) — Comprehensive guide to `TestPipeline`, `PAssert`, and pipeline testing best practices.
+* [Testing Unbounded Pipelines with TestStream](https://beam.apache.org/blog/test-stream/) — Deterministic testing of event-time windowing, watermarks, and triggers.
+* [Google Cloud Dataflow Flex Templates Overview](https://cloud.google.com/dataflow/docs/guides/templates/overview#flex-templates) — Packaging pipelines into Docker containers for dynamic parameterization.
+* [Dataflow Security: Configuring Private IPs](https://cloud.google.com/dataflow/docs/guides/routes-firewall#private_ip) — Isolating worker VMs from public internet routing using Private Google Access.
+* [Customer-Managed Encryption Keys (CMEK) for Dataflow](https://cloud.google.com/dataflow/docs/guides/customer-managed-encryption-keys) — Securing persistent disks, staging buckets, and data sinks with Cloud KMS.
+* [Google Cloud Build Documentation](https://cloud.google.com/build/docs) — Automating continuous testing, container packaging, and template registration.
+

@@ -249,3 +249,15 @@ bash 03_realtime_streaming/scripts/02_run_dataflow.sh
 Monitor your streaming job in the Cloud Console:
 - **Dataflow Console**: Observe **System Lag** and **Data Freshness** metrics.
 - **BigQuery Console**: Query `kpi_tumbling_metrics`, `kpi_sliding_metrics`, `kpi_session_metrics`, and `dead_letter_queue`.
+
+---
+
+## Official Documentation & Deep Dives
+
+* [Apache Beam Windowing Basics](https://beam.apache.org/documentation/programming-guide/#windowing) — Fixed (tumbling), sliding (hopping), and session window concepts.
+* [Apache Beam Triggers & Allowed Lateness](https://beam.apache.org/documentation/programming-guide/#triggers) — Speculative early triggers, on-time watermarks, and late accumulation modes.
+* [Streaming 101: The World Beyond Batch](https://www.oreilly.com/radar/the-world-beyond-batch-streaming-101/) — Tyler Akidau's seminal introduction to streaming data processing.
+* [Streaming 102: The World Beyond Batch](https://www.oreilly.com/radar/the-world-beyond-batch-streaming-102/) — The 4 questions: What, Where, When, and How.
+* [Google Cloud Pub/Sub Message Ordering](https://cloud.google.com/pubsub/docs/ordering) — Delivering messages in order using Pub/Sub ordering keys.
+* [Google Cloud Dataflow Streaming Overview](https://cloud.google.com/dataflow/docs/concepts/streaming-pipelines) — Executing unbounded streaming pipelines with Streaming Engine.
+

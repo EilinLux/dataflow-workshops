@@ -195,3 +195,14 @@ gcloud alpha monitoring policies create \
 gcloud monitoring dashboards create \
   --config-from-file=05_streaming_engine_and_monitoring/monitoring/dashboard_dataflow_sla.json
 ```
+
+---
+
+## Official Documentation & Deep Dives
+
+* [Google Cloud Dataflow Streaming Engine](https://cloud.google.com/dataflow/docs/guides/streaming-engine) — Offloading shuffle and state to Google-managed infrastructure.
+* [Google Cloud Dataflow Shuffle Service](https://cloud.google.com/dataflow/docs/guides/dataflow-shuffle) — High-performance batch shuffle for GroupByKey and Combine.
+* [Dataflow Monitoring: System Lag & Data Freshness](https://cloud.google.com/dataflow/docs/guides/monitoring-overview#system-lag) — Interpreting streaming backlog and output staleness.
+* [Using the Dataflow Monitoring Interface](https://cloud.google.com/dataflow/docs/guides/using-monitoring-intf) — Analyzing step execution times, throughput, and CPU utilization.
+* [Google Cloud Monitoring Alerting Policies](https://cloud.google.com/monitoring/alerts) — Setting up SLA alerts and notification channels.
+

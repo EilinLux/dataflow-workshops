@@ -195,3 +195,14 @@ The script will:
 3. Submit the pipeline to Dataflow with `--runner=DataflowRunner`.
 4. Stream enriched valid rows directly into BigQuery table `curated_sales` via the **Storage Write API**.
 5. Save poison records into `gs://${DATAFLOW_BUCKET}/dlq/dead_letter_records-*.json`.
+
+---
+
+## Official Documentation & Deep Dives
+
+* [Apache Beam DoFn Lifecycle](https://beam.apache.org/documentation/programming-guide/#dofn) — Understanding worker setup, bundle processing, and teardown execution.
+* [Apache Beam Side Inputs Guide](https://beam.apache.org/documentation/programming-guide/#side-inputs) — Broadcasting reference collections and dictionaries to worker threads.
+* [Apache Beam Additional Outputs (Branching Streams)](https://beam.apache.org/documentation/programming-guide/#additional-outputs) — Dead-letter queues and multi-output routing.
+* [Apache Beam BigQuery I/O Connector](https://beam.apache.org/documentation/io/built-in/google-bigquery/) — Configuring BigQuery Storage Read and Storage Write APIs.
+* [Google Cloud BigQuery Storage Write API](https://cloud.google.com/bigquery/docs/write-api) — High-throughput streaming ingestion with exactly-once delivery semantics.
+

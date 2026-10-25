@@ -176,3 +176,14 @@ Simulate historical data recovery without impacting live production:
 ```bash
 bash 06_operations_replay_and_updates/scripts/03_disaster_recovery_seek_replay.sh
 ```
+
+---
+
+## Official Documentation & Deep Dives
+
+* [Updating an Existing Dataflow Pipeline](https://cloud.google.com/dataflow/docs/guides/updating-a-pipeline) — Deep dive into in-place `--update`, transform name compatibility, and drained bundle transitions.
+* [Stopping a Running Dataflow Job (Drain vs. Cancel)](https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline) — Understanding zero-loss graceful drain and state flush mechanics.
+* [Pub/Sub Replay and Seek Overview](https://cloud.google.com/pubsub/docs/replay-overview) — Replaying unacknowledged and acknowledged messages to timestamp or snapshot.
+* [Handling Message Failures with Pub/Sub Dead-Letter Topics](https://cloud.google.com/pubsub/docs/handling-failures#dead_letter_topic) — Forwarding poison pills and setting `max_delivery_attempts`.
+* [Cloud Pub/Sub Message Retention](https://cloud.google.com/pubsub/docs/subscriber#message_retention) — Configuring topic and subscription retention duration for auditability and recovery.
+

@@ -198,3 +198,13 @@ bash 04_stateful_processing_and_hotkeys/scripts/02_run_dataflow.sh
 Inspect the BigQuery output tables:
 - `user_session_profiles`: Real-time session profiles emitted upon timer expiration.
 - `fanout_user_metrics`: Metrics aggregated without hot key bottlenecks.
+
+---
+
+## Official Documentation & Deep Dives
+
+* [Apache Beam Stateful Processing](https://beam.apache.org/documentation/programming-guide/#state-and-timers) — Using ValueState, BagState, and ReadModifyWriteStateSpec.
+* [Timely and Stateful Processing with Apache Beam](https://beam.apache.org/blog/timely-processing/) — State TTL, event-time vs. processing-time timers, and garbage collection.
+* [Google Cloud Dataflow: Preventing Hot Keys & withHotKeyFanout](https://cloud.google.com/dataflow/docs/guides/deploying-a-pipeline#preventing-hot-keys) — Resolving data skew bottlenecks and out-of-memory errors.
+* [Apache Beam Python State & Timers API](https://beam.apache.org/documentation/programming-guide/#state-timers-python) — Code examples and type signatures for Python SDK user state.
+
