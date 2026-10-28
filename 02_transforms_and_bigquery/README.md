@@ -172,7 +172,7 @@ We implement production-grade validation and enrichment patterns:
 
 ## Environment Setup & Activating the Kernel
 
-Before executing scripts or running notebook cells, activate the environment (for the complete guide, see the root [README.md](../README.md#environment-setup--activating-the-kernel-with-uv)):
+Before executing scripts or running notebook cells, activate the environment (for the complete guide, see the root [README.md](../README.md)):
 
 ```bash
 # 1. From repository root, install dependencies into .venv

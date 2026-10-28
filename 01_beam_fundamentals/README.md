@@ -2,64 +2,120 @@
 
 ## Table of Contents
 
-- [Overview](#overview)
-
-- [Real-World Production Problem & Storyline](#real-world-production-problem--storyline)
+- [Overview: Real-World Problem, Solution & Learning Objectives](#overview-real-world-problem-solution--learning-objectives)
+  - [The Scenario: The Midnight Batch Breakdown](#the-scenario-the-midnight-batch-breakdown)
+  - [The Production Disaster (Without Apache Beam)](#the-production-disaster-without-apache-beam)
+  - [What This Chapter Solves & What You Will Master](#what-this-chapter-solves--what-you-will-master)
+  - [Where to Start & Why: The Interactive Jupyter Notebook](#where-to-start--why-the-interactive-jupyter-notebook)
+  - [How & When to Use the Rest of This README](#how--when-to-use-the-rest-of-this-readme)
+  - [Storyline Connection](#storyline-connection)
 - [Chapter Contents](#chapter-contents)
 - [Pipeline Architecture & DAG Syntax](#pipeline-architecture--dag-syntax)
+  - [Visual Shape Legend](#visual-shape-legend)
+  - [What Does the "Unique Transform Name" Stand For? (With Example)](#what-does-the-unique-transform-name-stand-for-with-example)
+  - [Pipeline Architecture DAG](#pipeline-architecture-dag)
 - [Core Concepts Deep Dive: DoFn vs. beam.ParDo](#core-concepts-deep-dive-dofn-vs-beam-pardo)
-
+  - [The Core Distinction: Logic vs. Execution Harness](#the-core-distinction-logic-vs-execution-harness)
+  - [How They Work Together: Distributed Execution Lifecycle](#how-they-work-together-distributed-execution-lifecycle)
+  - [Architecture & Execution Flow Diagram](#architecture--execution-flow-diagram)
+  - [Comparison Matrix: DoFn vs. beam.ParDo](#comparison-matrix-dofn-vs-beam-pardo)
+  - [Common Anti-Patterns & Pitfalls](#common-anti-patterns--pitfalls)
 - [Environment Setup & Activating the Kernel](#environment-setup--activating-the-kernel)
 - [Quick Start: Running the Pipeline](#quick-start-running-the-pipeline)
+  - [1. Run Locally with DirectRunner](#1-run-locally-with-directrunner)
+  - [2. Run on Google Cloud Dataflow](#2-run-on-google-cloud-dataflow)
 - [Official Documentation & Deep Dives](#official-documentation--deep-dives)
 
 ---
 
-## Overview
-
-In this chapter, we introduce the core concepts of the **Apache Beam** unified programming model and explore how **Google Cloud Dataflow** executes Beam pipelines at scale. 
-
-You will build your first data pipeline processing the **Retail Sales** dataset (`sales_data.csv`), test it locally using **`DirectRunner`**, and submit it to Google Cloud's serverless infrastructure using **`DataflowRunner`**.
-
----
-
-### What You Will Learn
-
-1. **The Apache Beam Philosophy**:
-   * How Beam unifies **Batch** and **Streaming** into a single API.
-   * The separation between pipeline authoring (Beam SDK) and pipeline execution (Runners).
-2. **Core Abstractions**:
-   * **`Pipeline`**: The directed graph managing execution flow and configuration.
-   * **`PCollection`**: Immutable distributed datasets (bounded or unbounded).
-   * **`PTransform`**: In Apache Beam Python, a `PTransform` represents an operation (a step in your directed acyclic graph, or DAG) that takes one or more `PCollections` as input, performs work, and produces zero or more `PCollections` as output.`[Output PCollection] = [Input PCollection] | [Transform Label] >> [PTransform]`. The pipe syntax (`|`) is Python operator overloading at work to make writing and visualizing pipelines intuitive and readable. 
-   * **`DoFn` / `beam.ParDo`**: User-defined element-wise transformation functions. In Apache Beam, a `DoFn` is the user-defined logic specifying what to do with each element, while `ParDo` is the pipeline transform (`PTransform`) that executes that logic in parallel across a `PCollection`.
-   * **`CombinePerKey`**: Associative and commutative aggregations with partial local combine.
-3. **Execution Environments (Runners)**:
-   * **`DirectRunner`**: Local execution for fast iteration, debugging, and unit tests without cloud costs.
-   * **`DataflowRunner`**: Managed distributed execution on Google Cloud with auto-scaling and dynamic work rebalancing.
-
----
-
-## Real-World Production Problem & Storyline
+## Overview: Real-World Problem, Solution & Learning Objectives
 
 ### The Scenario: The Midnight Batch Breakdown
 OmniRetail operates 500 retail stores nationwide. Every midnight, cash registers dump raw CSV transaction logs into Google Cloud Storage (`data/sales_data.csv`). The CFO and finance leadership require an aggregated daily revenue report by product category by 6:00 AM for morning inventory restocking and supplier settlements.
 
 ### The Production Disaster (Without Apache Beam)
-Previously, the engineering team executed a single-node Python script using pandas on a Compute Engine VM. As business volume scaled to tens of millions of transactions:
+Previously, the engineering team executed a single-node Python script using pandas on a Compute Engine VM. As business volume scaled to tens of millions of transactions, the system hit three fatal walls:
 1. **The `MemoryError` Wall**: Loading multi-gigabyte CSV files into pandas DataFrames consumed all VM RAM, crashing with unhandled Out-Of-Memory (OOM) errors at 3:30 AM.
 2. **Zero Fault Tolerance**: When a 3-hour job fails at 90% completion, all intermediate progress is lost and the entire job must restart from scratch, guaranteeing a missed 6:00 AM SLA.
-3. **No Elastic Scaling**: Scaling up required provisioning a massive `m2-ultramem` instance that sat idle for 20 hours a day, inflating cloud bills.
+3. **No Elastic Scaling**: Scaling up required provisioning a massive `m2-ultramem` instance that sat idle for 20 hours a day, needlessly inflating cloud bills.
 
-### How This Chapter's Demo Solves It
-We replace the fragile single-node script with a distributed **Apache Beam** batch pipeline:
-- **`beam.io.ReadFromText`**: Reads *massive files in parallel chunks* without exhausting worker memory.
-- **Custom `DoFn` (`ParseSalesRecordFn`, `FilterByDateFn`)**: `DoFn`is a base Python class, used to define user-defined logic specifying what to do with each element. In this case, `ParseSalesRecordFn(beam.DoFn` parses records into typed dictionaries and `FilterByDateFn(beam.DoFn)` filters out records outside of a specified date range.
-- **`CombinePerKey(sum)`**: a core transform that aggregates all values associated with each key in a keyed PCollection (i.e., a collection of (key, value) pairs) using an associative and commutative combining function.Executes partial combiner aggregation locally on worker VMs before distributed shuffle, slashing network transfer.
-- **Run Anywhere**: Developers test locally on workstation sample data with **`DirectRunner`**, then deploy to **`DataflowRunner`** where Google Cloud provisions, balances, and tears down worker VMs automatically.
+### What This Chapter Solves & What You Will Master
+In this chapter, you will replace the fragile single-node script with an auto-scaling, distributed **Apache Beam** batch pipeline. You will learn and implement:
+
+1. **Distributed Parallel Ingestion (`beam.io.ReadFromText`)**:
+   * Reads multi-gigabyte files in parallel chunks across worker nodes without exhausting worker memory.
+2. **Custom Element-Wise Processing (`DoFn` & `beam.ParDo`)**:
+   * **What They Stand For**:
+     * **`DoFn` stands for "Do Function"**: It is an extensible base Python class (`beam.DoFn`) provided by the Apache Beam SDK. You subclass this base class to define *what* transformation to perform on each individual record by overriding its generator method `process(self, element)`.
+     * **`ParDo` stands for "Parallel Do"**: It is the core Apache Beam pipeline transform (`beam.PTransform`) that acts as the distributed execution harness, defining *how* to invoke that `DoFn` logic concurrently across worker threads and machines.
+   * **How They Connect**:
+     A `DoFn` represents pure business logic; `beam.ParDo` provides the distributed execution engine. A `DoFn` cannot be applied directly to a `PCollection` with the pipe operator (`pcoll | ParseSalesRecordFn()` will crash with a `TypeError`). Instead, you instantiate your `DoFn` subclass and pass it as an argument to `beam.ParDo`:
+     ```python
+     import apache_beam as beam
+
+     # 1. THE "WHAT": Subclass the beam.DoFn base class
+     class ParseSalesRecordFn(beam.DoFn):
+         def process(self, line: str):
+             parts = line.strip().split(",")
+             if len(parts) == 4 and parts[0] != "transaction_id":
+                 yield {
+                     "transaction_id": parts[0],
+                     "product_id": parts[1],
+                     "amount": float(parts[2]),
+                     "transaction_date": parts[3],
+                 }
+
+     # 2. THE "HOW": Execute in parallel across workers via beam.ParDo
+     parsed_records = raw_lines | "ParseRecords" >> beam.ParDo(ParseSalesRecordFn())
+     ```
+3. **Combiner Optimization Example (`CombinePerKey(sum)`)**:
+   * An example of combiner lifting, where associative and commutative operations (such as `sum`, `min`/`max`, or custom `CombineFn`s) perform partial reductions directly on local worker VMs, replacing expensive full-network shuffles.
+4. **The Unified Runner Model (`DirectRunner` vs. `DataflowRunner`)**:
+   * Write once using the Apache Beam SDK, test locally on sample data with **`DirectRunner`**, and submit to Google Cloud **`DataflowRunner`** where Google automatically provisions, balances, and tears down worker VMs.
+
+---
+
+### Where to Start & Why: The Interactive Jupyter Notebook
+
+> [!TIP]
+> **🚀 Always start with the Jupyter Notebook: [`01_beam_fundamentals.ipynb`](./01_beam_fundamentals.ipynb)**
+
+If you are new to Apache Beam or exploring this chapter for the first time, **do not jump straight to the shell scripts or production pipeline code**. Here is why you should start with the notebook:
+
+1. **Step-by-Step Interactive Learning**:
+   Apache Beam uses a **lazy execution model** (the pipeline DAG is constructed first and only executed when the pipeline context exits). The notebook breaks this down cell-by-cell:
+   * First, you experiment with in-memory collections (`beam.Create`) to see transformations execute immediately.
+   * Next, you inspect real CSV records and test individual `DoFn` parsing methods before wiring them into the graph.
+2. **Instant Local Feedback (`DirectRunner`)**:
+   The notebook runs using `DirectRunner` on your local CPU. You get instant validation, print statements, and error tracebacks in seconds with **zero GCP cloud costs** and zero worker provisioning wait time.
+3. **Embedded Visual DAG Architecture**:
+   The notebook embeds the exact pre-rendered execution DAG directly above the code cells, allowing you to visually connect Beam abstractions (`PCollection` cylinders and `PTransform` rectangles) with the Python code creating them.
+4. **The Recommended Progression**:
+   * **Step 1 (Interactive Learning)**: Open and run [`01_beam_fundamentals.ipynb`](./01_beam_fundamentals.ipynb) to master Beam syntax interactively.
+   * **Step 2 (Architectural Deep Dive)**: Read [Pipeline Architecture & DAG Syntax](#pipeline-architecture--dag-syntax) and [Core Concepts Deep Dive: DoFn vs. beam.ParDo](#core-concepts-deep-dive-dofn-vs-beam-pardo) below.
+   * **Step 3 (Production Code Inspection)**: Inspect the modular production script [`pipelines/sales_pipeline.py`](./pipelines/sales_pipeline.py).
+   * **Step 4 (CLI & Cloud Deployment)**: Execute the pipeline via terminal shell scripts locally ([`scripts/01_run_local.sh`](./scripts/01_run_local.sh)) and deploy to Google Cloud Dataflow ([`scripts/02_run_dataflow.sh`](./scripts/02_run_dataflow.sh)).
+
+---
+
+### How & When to Use the Rest of This README
+
+This chapter is designed as a complementary pair: the **Jupyter Notebook** gives you immediate execution feedback, while this **README** provides the architectural theory, edge-case analysis, and production deployment scripts.
+
+Use this roadmap to know **when and why** to reference each section:
+
+| Section | What It Contains | When & Why to Use It |
+| :--- | :--- | :--- |
+| **[Pipeline Architecture & DAG Syntax](#pipeline-architecture--dag-syntax)** | Visual shape syntax, DAG construction, and transform naming rules | Read when you reach Notebook Section 3 or when constructing custom pipelines. Explains why naming every stage with `>>` is critical for Cloud Console monitoring and logging. |
+| **[Core Concepts Deep Dive: DoFn vs. beam.ParDo](#core-concepts-deep-dive-dofn-vs-beam-pardo)** | The 6-phase distributed lifecycle, comparison matrix, and 4 common anti-patterns | Read when you reach Notebook Section 5 or when writing custom Python transformation classes. Prevents deadly bugs like opening database sockets inside `process()`. |
+| **[Environment Setup & Activating the Kernel](#environment-setup--activating-the-kernel)** | Fast setup instructions and link to the central root setup guide | Read before running the notebook if you encounter `ModuleNotFoundError: No module named 'apache_beam'` or need to register the `.venv` kernel. |
+| **[Quick Start: Running the Pipeline](#quick-start-running-the-pipeline)** | One-click terminal scripts for local and cloud execution | Read after exploring the notebook. Shows how to run the pipeline like a real production data engineering workload via shell automation without opening Jupyter. |
+| **[Official Documentation & Deep Dives](#official-documentation--deep-dives)** | Curated links to official Apache Beam and Google Cloud Dataflow guides | Read when preparing for Google Cloud certification or troubleshooting production worker logs. |
+
+---
 
 ### Storyline Connection
-- ➡️ **Next Crisis (Chapter 02)**: Batch scaling is solved, but marketing introduces an auxiliary product dimension catalog, and cash register glitches inject corrupt records with negative subtotals that silently crash the nightly run!
+* ➡️ **Next Crisis (Chapter 02)**: Batch scaling is solved, but marketing introduces an auxiliary product dimension catalog, and cash register glitches inject corrupt records with negative subtotals that silently crash the nightly run!
 
 ---
 
@@ -86,13 +142,41 @@ In Apache Beam, pipelines are constructed using the pipe operator (`|`) and the 
 * **🛢️ `[( PCollection )]` (Cylinder / Oval)**: Represents immutable distributed **data** (in-flight records).
 * **⚙️ `[ PTransform ]` (Rectangle)**: Represents the **processing operations** that consume and produce `PCollections`.
 
-### What Does the "Unique Transform Name" Stand For?
+### What Does the "Unique Transform Name" Stand For? (With Example)
 In `p | "FilterDate" >> beam.ParDo(...)`, the string `"FilterDate"` is a critical runtime identifier:
 1. **DAG Graph Node Label**: Apache Beam registers this string as the unique node identifier in the execution DAG.
 2. **Google Cloud Dataflow Console Stage**: The GCP Console visualizes each pipeline step using this label, allowing you to click on stages to inspect worker throughput, execution latency, and bottlenecks.
 3. **Cloud Monitoring & Logging Scope**: All Dataflow metrics (counters, execution wall time, CPU utilization) are indexed by this step name in Cloud Monitoring.
 4. **Uniqueness Constraint**: Every transform name **must be unique** within its scope. Reusing a name raises `ValueError: A transform with name ... already exists in this pipeline`.
 5. **Streaming Checkpoints**: For streaming jobs, Dataflow keys window buffers and timers to these names. Preserving names ensures state continuity during rolling pipeline updates (`--update`).
+
+#### 💡 Production Code Example: Named vs. Unnamed Transforms
+
+```python
+# ❌ ANTI-PATTERN: Omitted '>>' transform labels
+# In the Dataflow Console, Google Cloud auto-generates cryptic names like 'Map(extract_kv)-1'.
+# Cloud Monitoring metrics cannot isolate step bottlenecks, and updates become impossible!
+totals = (
+    lines
+    | beam.ParDo(ParseSalesRecordFn())
+    | beam.Map(lambda r: (r["product_id"], r["amount"]))
+    | beam.CombinePerKey(sum)
+)
+
+# ✅ BEST PRACTICE: Explicit, unique, human-readable stage names
+# Every stage box in the Dataflow Console renders with your clear label.
+# Clicking 'ParseSalesRecords' immediately displays worker throughput, wall time, and logs!
+totals = (
+    lines
+    | "ParseSalesRecords" >> beam.ParDo(ParseSalesRecordFn())
+    | "ExtractProductRevenue" >> beam.Map(lambda r: (r["product_id"], r["amount"]))
+    | "AggregateTotalRevenue" >> beam.CombinePerKey(sum)
+)
+```
+
+---
+
+### Pipeline Architecture DAG
 
 <!-- ![Retail Sales Pipeline DAG](../artifacts/01_sales_pipeline_dag.png) -->
 
@@ -312,7 +396,7 @@ class BadCounterFn(beam.DoFn):
 
 ## Environment Setup & Activating the Kernel
 
-Before running scripts or opening the notebook, set up the project environment (for the complete guide, see the root [README.md](../README.md#environment-setup--activating-the-kernel-with-uv)):
+Before running scripts or opening the notebook, set up the project environment (for the complete guide, see the root [README.md](../README.md)):
 
 ```bash
 # 1. From the repository root, install dependencies into .venv
